@@ -67,6 +67,9 @@
             "dev": "vite",
             "build": "vite build",
             "preview": "vite preview --port 5173 --host",
-            "start": "serve -s build -l 5173"
+            "start": "serve -s build -l 5173",
+            "test": "vitest run",
+            "test:watch": "vitest",
+            "test:ui": "vitest --ui"
       }
 }

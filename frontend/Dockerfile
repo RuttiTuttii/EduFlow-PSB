@@ -13,25 +13,20 @@ RUN npm ci
 COPY . .
 
 # Build argument for API URL
-ARG VITE_API_URL
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine AS production
+# Production stage with Nginx
+FROM nginx:alpine AS production
 
-WORKDIR /app
+# Copy built files
+COPY --from=builder /app/build /usr/share/nginx/html
 
-# Install serve globally
-RUN npm install -g serve
-
-# Copy built files from builder
-COPY --from=builder /app/build ./build
-
-# Set production environment
-ENV NODE_ENV=production
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 5173
@@ -40,5 +35,5 @@ EXPOSE 5173
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:5173/ || exit 1
 
-# Start the application
-CMD ["serve", "-s", "build", "-l", "5173"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
