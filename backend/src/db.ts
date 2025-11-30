@@ -605,98 +605,97 @@ minimum, maximum = min_max([1, 5, 3, 9, 2])
     ).run(courseId, assignment.title, assignment.description, assignment.due_date);
   }
   
-  // Create exam
-  dbWrapper!.prepare(
-    'INSERT INTO exams (course_id, title, description, duration_minutes, passing_score, questions) VALUES (?, ?, ?, ?, ?, ?)'
+  // Create exam (using actual schema: duration, total_points)
+  const examResult = dbWrapper!.prepare(
+    'INSERT INTO exams (course_id, title, description, duration, total_points) VALUES (?, ?, ?, ?, ?)'
   ).run(
     courseId,
     'Итоговый экзамен: Основы Python',
     'Итоговый экзамен по курсу. Включает вопросы по всем темам: переменные, типы данных, условия, циклы и функции.',
     45,
-    70,
-    JSON.stringify([
-      {
-        question: 'Какой тип данных используется для хранения текста в Python?',
-        options: ['int', 'str', 'bool', 'float'],
-        correctAnswer: 1,
-        explanation: 'str (string) — это тип данных для хранения текстовых строк в Python.'
-      },
-      {
-        question: 'Что выведет код: print(type(3.14))?',
-        options: ["<class 'int'>", "<class 'str'>", "<class 'float'>", "<class 'double'>"],
-        correctAnswer: 2,
-        explanation: '3.14 — это число с плавающей точкой, поэтому его тип float.'
-      },
-      {
-        question: 'Какой оператор используется для проверки равенства в Python?',
-        options: ['=', '==', '===', ':='],
-        correctAnswer: 1,
-        explanation: '== используется для сравнения значений. = используется для присваивания.'
-      },
-      {
-        question: 'Что делает функция range(5)?',
-        options: [
-          'Создаёт список [1, 2, 3, 4, 5]',
-          'Создаёт последовательность 0, 1, 2, 3, 4',
-          'Создаёт число 5',
-          'Вызывает ошибку'
-        ],
-        correctAnswer: 1,
-        explanation: 'range(5) создаёт последовательность чисел от 0 до 4 (5 не включается).'
-      },
-      {
-        question: 'Как правильно определить функцию в Python?',
-        options: [
-          'function greet():',
-          'def greet():',
-          'func greet():',
-          'define greet():'
-        ],
-        correctAnswer: 1,
-        explanation: 'В Python функции определяются с помощью ключевого слова def.'
-      },
-      {
-        question: 'Какой цикл гарантированно выполнится хотя бы один раз?',
-        options: ['for', 'while', 'do-while', 'В Python нет такого цикла'],
-        correctAnswer: 3,
-        explanation: 'В Python нет цикла do-while. Циклы for и while могут не выполниться ни разу, если условие ложно.'
-      },
-      {
-        question: 'Что делает оператор break в цикле?',
-        options: [
-          'Пропускает текущую итерацию',
-          'Полностью прекращает цикл',
-          'Перезапускает цикл',
-          'Вызывает ошибку'
-        ],
-        correctAnswer: 1,
-        explanation: 'break немедленно прекращает выполнение цикла и выходит из него.'
-      },
-      {
-        question: 'Какое значение вернёт выражение: 10 // 3?',
-        options: ['3.33', '3', '4', '1'],
-        correctAnswer: 1,
-        explanation: '// — это целочисленное деление. 10 // 3 = 3 (без остатка).'
-      },
-      {
-        question: 'Как получить длину списка в Python?',
-        options: ['list.length()', 'len(list)', 'list.size()', 'count(list)'],
-        correctAnswer: 1,
-        explanation: 'Функция len() возвращает количество элементов в списке.'
-      },
-      {
-        question: 'Что такое None в Python?',
-        options: [
-          'Число ноль',
-          'Пустая строка',
-          'Специальное значение "ничего"',
-          'Ошибка'
-        ],
-        correctAnswer: 2,
-        explanation: 'None — это специальный объект, обозначающий отсутствие значения.'
-      }
-    ])
+    100
   );
+  const examId = examResult.lastInsertRowid;
+  
+  // Create exam questions
+  const questions = [
+    {
+      question: 'Какой тип данных используется для хранения текста в Python?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['int', 'str', 'bool', 'float']),
+      correct_answer: 'str',
+      points: 10
+    },
+    {
+      question: 'Что выведет код: print(type(3.14))?',
+      type: 'multiple_choice',
+      options: JSON.stringify(["<class 'int'>", "<class 'str'>", "<class 'float'>", "<class 'double'>"]),
+      correct_answer: "<class 'float'>",
+      points: 10
+    },
+    {
+      question: 'Какой оператор используется для проверки равенства в Python?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['=', '==', '===', ':=']),
+      correct_answer: '==',
+      points: 10
+    },
+    {
+      question: 'Что делает функция range(5)?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['Создаёт список [1, 2, 3, 4, 5]', 'Создаёт последовательность 0, 1, 2, 3, 4', 'Создаёт число 5', 'Вызывает ошибку']),
+      correct_answer: 'Создаёт последовательность 0, 1, 2, 3, 4',
+      points: 10
+    },
+    {
+      question: 'Как правильно определить функцию в Python?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['function greet():', 'def greet():', 'func greet():', 'define greet():']),
+      correct_answer: 'def greet():',
+      points: 10
+    },
+    {
+      question: 'Какой цикл гарантированно выполнится хотя бы один раз?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['for', 'while', 'do-while', 'В Python нет такого цикла']),
+      correct_answer: 'В Python нет такого цикла',
+      points: 10
+    },
+    {
+      question: 'Что делает оператор break в цикле?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['Пропускает текущую итерацию', 'Полностью прекращает цикл', 'Перезапускает цикл', 'Вызывает ошибку']),
+      correct_answer: 'Полностью прекращает цикл',
+      points: 10
+    },
+    {
+      question: 'Какое значение вернёт выражение: 10 // 3?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['3.33', '3', '4', '1']),
+      correct_answer: '3',
+      points: 10
+    },
+    {
+      question: 'Как получить длину списка в Python?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['list.length()', 'len(list)', 'list.size()', 'count(list)']),
+      correct_answer: 'len(list)',
+      points: 10
+    },
+    {
+      question: 'Что такое None в Python?',
+      type: 'multiple_choice',
+      options: JSON.stringify(['Число ноль', 'Пустая строка', 'Специальное значение "ничего"', 'Ошибка']),
+      correct_answer: 'Специальное значение "ничего"',
+      points: 10
+    }
+  ];
+  
+  for (const q of questions) {
+    dbWrapper!.prepare(
+      'INSERT INTO exam_questions (exam_id, question, type, options, correct_answer, points) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(examId, q.question, q.type, q.options, q.correct_answer, q.points);
+  }
   
   // Add some user activity for the student
   const today = new Date().toISOString().split('T')[0];
