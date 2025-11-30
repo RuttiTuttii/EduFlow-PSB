@@ -24,9 +24,17 @@
     "docker:down": "docker-compose down"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "concurrently": "^8.2.2"
   },
-  "keywords": ["education", "lms", "learning"],
+  "keywords": [
+    "education",
+    "lms",
+    "learning"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7"
+  }
 }

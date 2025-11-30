@@ -177,6 +177,13 @@ export const examsApi = {
 export const messagesApi = {
   getConversations: () =>
     apiCall('/messages/conversations'),
+  createConversation: (user_id: number) =>
+    apiCall('/messages/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ user_id }),
+    }),
+  getAvailableUsers: () =>
+    apiCall('/messages/available-users'),
   getMessages: (userId: number) =>
     apiCall(`/messages/user/${userId}`),
   send: (recipient_id: number, content: string) =>
@@ -184,16 +191,48 @@ export const messagesApi = {
       method: 'POST',
       body: JSON.stringify({ recipient_id, content }),
     }),
+  deleteMessage: (messageId: number) =>
+    apiCall(`/messages/${messageId}`, { method: 'DELETE' }),
   getUnreadCount: () =>
     apiCall('/messages/unread'),
+  
+  // Notifications
+  getNotifications: () =>
+    apiCall('/messages/notifications'),
+  getNotificationsUnread: () =>
+    apiCall('/messages/notifications/unread'),
+  markNotificationRead: (id: number) =>
+    apiCall(`/messages/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () =>
+    apiCall('/messages/notifications/read-all', { method: 'PUT' }),
+  deleteNotification: (id: number) =>
+    apiCall(`/messages/notifications/${id}`, { method: 'DELETE' }),
+  
+  // Course invitations
+  getInvitations: () =>
+    apiCall('/messages/invitations'),
+  inviteStudent: (course_id: number, student_email: string, message?: string) =>
+    apiCall('/messages/invitations/invite', {
+      method: 'POST',
+      body: JSON.stringify({ course_id, student_email, message }),
+    }),
+  requestCourse: (course_id: number, message?: string) =>
+    apiCall('/messages/invitations/request', {
+      method: 'POST',
+      body: JSON.stringify({ course_id, message }),
+    }),
+  acceptInvitation: (id: number) =>
+    apiCall(`/messages/invitations/${id}/accept`, { method: 'POST' }),
+  declineInvitation: (id: number) =>
+    apiCall(`/messages/invitations/${id}/decline`, { method: 'POST' }),
 };
 
 // AI endpoints
 export const aiApi = {
-  getHelp: (question: string, topic?: string, context?: string) =>
+  getHelp: (question: string, topic?: string, context?: string, useContext?: boolean) =>
     apiCall('/ai/help', {
       method: 'POST',
-      body: JSON.stringify({ question, topic, context }),
+      body: JSON.stringify({ question, topic, context, useContext }),
     }),
   analyzeSubmission: (submission: string, rubric?: string) =>
     apiCall('/ai/analyze-submission', {
@@ -210,6 +249,46 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ concept, level }),
     }),
+  // New AI tools
+  getTemplates: () => apiCall('/ai/templates'),
+  createDebtPlan: () =>
+    apiCall('/ai/create-debt-plan', { method: 'POST' }),
+  getRecommendations: () =>
+    apiCall('/ai/recommendations', { method: 'POST' }),
+  examPrep: (examId?: number, daysUntilExam?: number) =>
+    apiCall('/ai/exam-prep', {
+      method: 'POST',
+      body: JSON.stringify({ examId, daysUntilExam }),
+    }),
+  summarize: (topic: string, content?: string) =>
+    apiCall('/ai/summarize', {
+      method: 'POST',
+      body: JSON.stringify({ topic, content }),
+    }),
+  getContext: () => apiCall('/ai/context'),
+  
+  // AI Chat management
+  getChats: () => apiCall('/ai/chats'),
+  createChat: (title?: string) =>
+    apiCall('/ai/chats', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    }),
+  getChatMessages: (chatId: number) => apiCall(`/ai/chats/${chatId}/messages`),
+  sendChatMessage: (chatId: number, content: string, useContext?: boolean) =>
+    apiCall(`/ai/chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content, useContext }),
+    }),
+  updateChat: (chatId: number, title: string) =>
+    apiCall(`/ai/chats/${chatId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    }),
+  deleteChat: (chatId: number) =>
+    apiCall(`/ai/chats/${chatId}`, { method: 'DELETE' }),
+  clearAllChats: () =>
+    apiCall('/ai/chats', { method: 'DELETE' }),
 };
 
 // Dashboard endpoints
@@ -264,11 +343,41 @@ export const api = {
   exams: examsApi,
   messages: messagesApi,
   ai: {
-    help: (params: { question: string; topic?: string; context?: string }) =>
-      aiApi.getHelp(params.question, params.topic, params.context),
+    help: (params: { question: string; topic?: string; context?: string; useContext?: boolean }) =>
+      aiApi.getHelp(params.question, params.topic, params.context, params.useContext),
     analyze: aiApi.analyzeSubmission,
     questions: aiApi.generateQuestions,
     explain: aiApi.explainConcept,
+    templates: aiApi.getTemplates,
+    debtPlan: aiApi.createDebtPlan,
+    recommendations: aiApi.getRecommendations,
+    examPrep: aiApi.examPrep,
+    summarize: aiApi.summarize,
+    context: aiApi.getContext,
+    // Chat management
+    chats: aiApi.getChats,
+    createChat: aiApi.createChat,
+    getChatMessages: aiApi.getChatMessages,
+    sendChatMessage: aiApi.sendChatMessage,
+    updateChat: aiApi.updateChat,
+    deleteChat: aiApi.deleteChat,
+    clearAllChats: aiApi.clearAllChats,
   },
   dashboard: dashboardApi,
+  // Notifications
+  notifications: {
+    getAll: messagesApi.getNotifications,
+    getUnread: messagesApi.getNotificationsUnread,
+    markAsRead: messagesApi.markNotificationRead,
+    markAllAsRead: messagesApi.markAllNotificationsRead,
+    delete: messagesApi.deleteNotification,
+  },
+  // Course invitations
+  invitations: {
+    getAll: messagesApi.getInvitations,
+    invite: messagesApi.inviteStudent,
+    request: messagesApi.requestCourse,
+    accept: messagesApi.acceptInvitation,
+    decline: messagesApi.declineInvitation,
+  },
 };

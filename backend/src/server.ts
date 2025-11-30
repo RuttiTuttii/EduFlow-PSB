@@ -1,6 +1,7 @@
 import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -33,6 +34,7 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
 // Database ready flag

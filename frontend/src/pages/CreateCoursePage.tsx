@@ -3,6 +3,8 @@ import { Save, Plus, X, Upload, Video, FileText, CheckSquare } from 'lucide-reac
 import { DashboardLayout } from '../components/DashboardLayout';
 import { GridPattern } from '../components/GridPattern';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
 import type { User } from '../App';
 
 interface CreateCoursePageProps {
@@ -17,15 +19,18 @@ interface Lesson {
   id: number;
   type: 'video' | 'text' | 'quiz';
   title: string;
-  duration: string;
+  content: string;
 }
 
 export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTheme }: CreateCoursePageProps) {
+  const navigate = useNavigate();
   const [courseName, setCourseName] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [level, setLevel] = useState('beginner');
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [showAddLesson, setShowAddLesson] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' ? 'bg-white/60 border-white/80' : 'bg-indigo-900/40 border-indigo-800/40';
@@ -33,10 +38,10 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
 
   const addLesson = (type: 'video' | 'text' | 'quiz') => {
     const newLesson: Lesson = {
-      id: lessons.length + 1,
+      id: Date.now(),
       type,
       title: `Новый урок ${lessons.length + 1}`,
-      duration: '0 мин',
+      content: '',
     };
     setLessons([...lessons, newLesson]);
     setShowAddLesson(false);
@@ -44,6 +49,36 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
 
   const removeLesson = (id: number) => {
     setLessons(lessons.filter(lesson => lesson.id !== id));
+  };
+
+  const handleSave = async () => {
+    if (!courseName.trim()) {
+      setError('Введите название курса');
+      return;
+    }
+    if (!courseDescription.trim()) {
+      setError('Введите описание курса');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const course = await api.courses.create({
+        title: courseName,
+        description: courseDescription,
+        level,
+      });
+
+      // TODO: Add lessons to the course via API
+      // For now, just redirect to the course page
+      navigate(`/course?id=${course.id}`);
+    } catch (err: any) {
+      setError(err.message || 'Ошибка при создании курса');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const lessonTypeConfig = {
@@ -76,7 +111,7 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => onNavigate('teacher-dashboard')}
+                onClick={() => navigate('/teacher-dashboard')}
                 className={`px-6 py-3 rounded-[24px] ${
                   theme === 'day' ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-800/50 text-indigo-200'
                 } shadow-lg`}
@@ -86,10 +121,16 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-[24px] shadow-xl"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-[24px] shadow-xl disabled:opacity-50"
               >
-                <Save className="w-5 h-5" />
-                Сохранить курс
+                {saving ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                {saving ? 'Сохранение...' : 'Сохранить курс'}
               </motion.button>
             </div>
           </div>
@@ -101,6 +142,12 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
           <div className="relative z-10 space-y-6">
             <h2 className={`text-2xl mb-6 ${textClass}`}>Основная информация</h2>
 
+            {error && (
+              <div className="p-4 bg-red-100 border border-red-300 rounded-[16px] text-red-700">
+                {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className={`block mb-2 ${textClass}`}>Название курса</label>
@@ -108,24 +155,21 @@ export function CreateCoursePage({ theme, user, onNavigate, onLogout, onToggleTh
                   type="text"
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
-                  placeholder="Например: Основы маркетинга"
+                  placeholder="Например: Основы Python"
                   className={`w-full px-4 py-3 rounded-[20px] ${inputBg} ${textClass} border-2 focus:outline-none focus:border-indigo-500 transition-all`}
                 />
               </div>
 
               <div>
-                <label className={`block mb-2 ${textClass}`}>Категория</label>
+                <label className={`block mb-2 ${textClass}`}>Уровень сложности</label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
                   className={`w-full px-4 py-3 rounded-[20px] ${inputBg} ${textClass} border-2 focus:outline-none focus:border-indigo-500 transition-all`}
                 >
-                  <option value="">Выберите категорию</option>
-                  <option value="marketing">Маркетинг</option>
-                  <option value="design">Дизайн</option>
-                  <option value="programming">Программирование</option>
-                  <option value="business">Бизнес</option>
-                  <option value="languages">Языки</option>
+                  <option value="beginner">Начальный</option>
+                  <option value="intermediate">Средний</option>
+                  <option value="advanced">Продвинутый</option>
                 </select>
               </div>
             </div>

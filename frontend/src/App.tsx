@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import { CoursePage } from './pages/CoursePage';
+import { CoursesPage } from './pages/CoursesPage';
 import { AssignmentPage } from './pages/AssignmentPage';
 import { GradingPage } from './pages/GradingPage';
 import { MessengerPage } from './pages/MessengerPage';
@@ -114,6 +115,12 @@ function AppContent() {
       <Route path="/teacher-dashboard" element={
         <ProtectedRoute user={user} requiredRole="teacher">
           <TeacherDashboard theme={theme} user={user} onLogout={handleLogout} onToggleTheme={toggleTheme} />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/courses" element={
+        <ProtectedRoute user={user}>
+          <CoursesPage theme={theme} user={user} onLogout={handleLogout} onToggleTheme={toggleTheme} />
         </ProtectedRoute>
       } />
 
