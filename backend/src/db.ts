@@ -334,7 +334,8 @@ export async function initDb() {
 
 // Seed demo users, course, lessons, tests, and exam
 async function seedDemoData() {
-  const bcrypt = await import('bcryptjs');
+  const bcryptModule = await import('bcryptjs');
+  const bcrypt = bcryptModule.default || bcryptModule;
   
   // Check if demo data already exists
   const existingTeacher = dbWrapper!.prepare('SELECT id FROM users WHERE email = ?').get('admin@teacher');
