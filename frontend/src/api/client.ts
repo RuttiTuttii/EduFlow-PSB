@@ -191,7 +191,7 @@ export const messagesApi = {
   send: (recipientId: number, content: string) =>
     apiCall('/messages/send', {
       method: 'POST',
-      body: JSON.stringify({ recipientId, content }),
+      body: JSON.stringify({ recipient_id: recipientId, content }),
     }),
   deleteMessage: (messageId: number) =>
     apiCall(`/messages/${messageId}`, { method: 'DELETE' }),
