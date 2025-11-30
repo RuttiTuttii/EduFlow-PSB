@@ -16,6 +16,7 @@ import { ErrorPage } from './pages/ErrorPage';
 import { CreateCoursePage } from './pages/CreateCoursePage';
 import { CreateExamPage } from './pages/CreateExamPage';
 import { EditCoursePage } from './pages/EditCoursePage';
+import { useDynamicFavicon } from './utils/useDynamicFavicon';
 
 export type UserRole = 'student' | 'teacher' | null;
 
@@ -50,6 +51,9 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<'day' | 'night'>('night');
   const [loading, setLoading] = useState(true);
+
+  // Динамический favicon в зависимости от темы
+  useDynamicFavicon(theme);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// In production, use relative path /api, in development use full URL
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 let authToken: string | null = localStorage.getItem('authToken');
 let refreshToken: string | null = localStorage.getItem('refreshToken');

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://nixpacks.com/schema.json",
+  "providers": ["node"],
+  "phases": {
+    "setup": {
+      "nixPkgs": ["nodejs_20"]
+    },
+    "install": {
+      "cmds": [
+        "npm ci",
+        "cd frontend && npm ci",
+        "cd backend && npm ci"
+      ]
+    },
+    "build": {
+      "cmds": [
+        "cd frontend && npm run build",
+        "cd backend && npm run build"
+      ]
+    }
+  },
+  "start": "cd backend && npm start"
+}
