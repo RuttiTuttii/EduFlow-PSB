@@ -131,6 +131,35 @@ router.get('/available-users', authMiddleware, (req: Request, res: Response) => 
 
 // ============ MESSAGES ============
 
+// Get messages with a specific user (alias: /direct/:userId)
+router.get('/direct/:userId', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const currentUserId = req.user!.id;
+    const otherUserId = parseInt(req.params.userId);
+    
+    const messages = db.prepare(`
+      SELECT m.*, u.name as sender_name, u.avatar as sender_avatar
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE ((m.sender_id = ? AND m.recipient_id = ? AND m.deleted_by_sender = 0)
+          OR (m.sender_id = ? AND m.recipient_id = ? AND m.deleted_by_recipient = 0))
+      ORDER BY m.created_at ASC
+    `).all(currentUserId, otherUserId, otherUserId, currentUserId);
+
+    // Mark messages as read
+    db.prepare(`
+      UPDATE messages SET read = 1 
+      WHERE recipient_id = ? AND sender_id = ? AND read = 0
+    `).run(currentUserId, otherUserId);
+
+    res.json(messages);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
 // Get messages with a specific user
 router.get('/user/:userId', authMiddleware, (req: Request, res: Response) => {
   try {
