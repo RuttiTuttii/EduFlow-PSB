@@ -118,8 +118,8 @@ export async function initDb() {
       sqlDb = new SQL.Database();
     }
   
-  db = sqlDb;
-  dbWrapper = new DbWrapper(sqlDb);
+    db = sqlDb;
+    dbWrapper = new DbWrapper(sqlDb);
   
   // Enable foreign keys
   dbWrapper.pragma('foreign_keys = ON');
@@ -323,6 +323,10 @@ export async function initDb() {
   }
   
   console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database:', error);
+    throw error;
+  }
 }
 
 export function getDb(): any {
