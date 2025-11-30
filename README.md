@@ -4,10 +4,10 @@ EduFlow — это образовательная платформа, разра
 
 ## 👥 Команда
 
-*   **Егор** — Frontend Developer
-*   **Алиса** — Backend Developer
-*   **Даша** — UI/UX Designer
-*   **Кирилл** — System Analyst
+*   **Радин Егор eegorradin3@gmail.com** — Frontend Developer
+*   **Шубина Алиса ssqwddwd@gmail.com** — Backend Developer
+*   **Давудова Дарья dariadavudova606@gmail.com** — UI/UX Designer
+*   **Сыродубов Кирилл sirou.kirill@gmail.com** — System Analyst
 
 ## 📂 Структура проекта
 
