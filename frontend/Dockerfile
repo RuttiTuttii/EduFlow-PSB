@@ -2,11 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Set NODE_ENV to development for installing all dependencies
+ENV NODE_ENV=development
+
 # Copy package files
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci --include=dev
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -17,6 +20,9 @@ ENV VITE_API_URL=$VITE_API_URL
 
 # Build the application
 RUN npm run build
+
+# Switch to production
+ENV NODE_ENV=production
 
 # Install serve to serve the built application
 RUN npm install -g serve
