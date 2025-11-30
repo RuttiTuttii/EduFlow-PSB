@@ -1,12 +1,14 @@
 interface BreadcrumbItem {
   label: string;
   path: string;
+  isDynamic?: boolean; // Flag to indicate dynamic content
 }
 
 interface BreadcrumbConfig {
   [key: string]: BreadcrumbItem[];
 }
 
+// Base configuration with placeholders for dynamic items
 export const breadcrumbsConfig: BreadcrumbConfig = {
   'landing': [],
   'login': [
@@ -23,19 +25,23 @@ export const breadcrumbsConfig: BreadcrumbConfig = {
   'teacher-dashboard': [
     { label: 'Дашборд', path: 'teacher-dashboard' },
   ],
+  'courses': [
+    { label: 'Дашборд', path: 'student-dashboard' },
+    { label: 'Курсы', path: 'courses' },
+  ],
   'course': [
     { label: 'Дашборд', path: 'student-dashboard' },
-    { label: 'Курсы', path: 'student-dashboard' },
-    { label: 'Основы маркетинга', path: 'course' },
+    { label: 'Курсы', path: 'courses' },
+    { label: '', path: 'course', isDynamic: true },
   ],
   'assignment': [
     { label: 'Дашборд', path: 'student-dashboard' },
-    { label: 'Основы маркетинга', path: 'course' },
-    { label: 'Анализ аудитории', path: 'assignment' },
+    { label: '', path: 'course', isDynamic: true },
+    { label: '', path: 'assignment', isDynamic: true },
   ],
   'grading': [
     { label: 'Дашборд', path: 'teacher-dashboard' },
-    { label: 'Основы маркетинга', path: 'edit-course' },
+    { label: '', path: 'edit-course', isDynamic: true },
     { label: 'Проверка работ', path: 'grading' },
   ],
   'messenger': [
@@ -53,7 +59,7 @@ export const breadcrumbsConfig: BreadcrumbConfig = {
   'edit-course': [
     { label: 'Дашборд', path: 'teacher-dashboard' },
     { label: 'Мои курсы', path: 'teacher-dashboard' },
-    { label: 'Основы маркетинга', path: 'edit-course' },
+    { label: '', path: 'edit-course', isDynamic: true },
   ],
   'create-exam': [
     { label: 'Дашборд', path: 'teacher-dashboard' },
@@ -61,21 +67,46 @@ export const breadcrumbsConfig: BreadcrumbConfig = {
   ],
 };
 
-export function getBreadcrumbs(currentPage: string, userRole?: 'student' | 'teacher' | null): BreadcrumbItem[] {
+interface DynamicLabels {
+  courseName?: string;
+  assignmentName?: string;
+}
+
+export function getBreadcrumbs(
+  currentPage: string, 
+  userRole?: 'student' | 'teacher' | null,
+  dynamicLabels?: DynamicLabels
+): BreadcrumbItem[] {
   let breadcrumbs = breadcrumbsConfig[currentPage] || [];
   
-  // Adjust dashboard path based on user role
-  if (userRole) {
+  // Apply dynamic labels
+  if (dynamicLabels) {
     breadcrumbs = breadcrumbs.map(item => {
-      if (item.path === 'student-dashboard' && userRole === 'teacher') {
-        return { ...item, path: 'teacher-dashboard', label: 'Дашборд преподавателя' };
-      }
-      if (item.path === 'teacher-dashboard' && userRole === 'student') {
-        return { ...item, path: 'student-dashboard', label: 'Дашборд' };
+      if (item.isDynamic) {
+        if ((item.path === 'course' || item.path === 'edit-course') && dynamicLabels.courseName) {
+          return { ...item, label: dynamicLabels.courseName };
+        }
+        if (item.path === 'assignment' && dynamicLabels.assignmentName) {
+          return { ...item, label: dynamicLabels.assignmentName };
+        }
       }
       return item;
     });
   }
   
-  return breadcrumbs;
+  // Adjust dashboard path based on user role
+  if (userRole) {
+    breadcrumbs = breadcrumbs.map(item => {
+      if (item.path === 'student-dashboard' && userRole === 'teacher') {
+        return { ...item, path: 'teacher-dashboard', label: item.label === 'Дашборд' ? 'Дашборд' : item.label };
+      }
+      if (item.path === 'teacher-dashboard' && userRole === 'student') {
+        return { ...item, path: 'student-dashboard', label: item.label === 'Дашборд' ? 'Дашборд' : item.label };
+      }
+      return item;
+    });
+  }
+  
+  // Filter out items with empty labels (unfilled dynamic items)
+  return breadcrumbs.filter(item => item.label !== '');
 }

@@ -198,9 +198,9 @@ describe('Component Flow Tests', () => {
   describe('Loading States', () => {
     it('should show loading state and then content', async () => {
       const LoadingComponent = () => {
-        const [isLoading, setIsLoading] = vi.importActual('react').useState(true);
+        const [isLoading, setIsLoading] = useState(true);
         
-        vi.importActual('react').useEffect(() => {
+        useEffect(() => {
           const timer = setTimeout(() => setIsLoading(false), 100);
           return () => clearTimeout(timer);
         }, []);
@@ -316,7 +316,7 @@ describe('Component Flow Tests', () => {
   describe('Search and Filter', () => {
     it('should filter items based on search', async () => {
       const FilterComponent = () => {
-        const [search, setSearch] = vi.importActual('react').useState('');
+        const [search, setSearch] = useState('');
         const items = ['Apple', 'Banana', 'Orange', 'Apricot'];
         const filtered = items.filter(item => 
           item.toLowerCase().includes(search.toLowerCase())
@@ -361,7 +361,7 @@ describe('Component Flow Tests', () => {
   describe('Tabs Component', () => {
     it('should switch between tabs', async () => {
       const TabsComponent = () => {
-        const [activeTab, setActiveTab] = vi.importActual('react').useState('tab1');
+        const [activeTab, setActiveTab] = useState('tab1');
 
         return (
           <div>

@@ -29,6 +29,10 @@ interface DashboardLayoutProps {
   onLogout: () => void;
   onToggleTheme: () => void;
   activePage?: string;
+  breadcrumbLabels?: {
+    courseName?: string;
+    assignmentName?: string;
+  };
 }
 
 export function DashboardLayout({
@@ -37,7 +41,8 @@ export function DashboardLayout({
   children,
   onLogout,
   onToggleTheme,
-  activePage = 'dashboard'
+  activePage = 'dashboard',
+  breadcrumbLabels
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -443,7 +448,7 @@ export function DashboardLayout({
           {activePage !== 'student-dashboard' && activePage !== 'teacher-dashboard' && (
             <Breadcrumbs
               theme={theme}
-              items={getBreadcrumbs(activePage, user?.role)}
+              items={getBreadcrumbs(activePage, user?.role, breadcrumbLabels)}
             />
           )}
           {children}

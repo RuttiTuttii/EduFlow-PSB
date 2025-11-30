@@ -54,8 +54,8 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
   const navigate = useNavigate();
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' 
-    ? 'bg-white/70 border-white/50' 
-    : 'bg-indigo-900/70 border-indigo-700/30';
+    ? 'bg-white/80 border-indigo-200/60' 
+    : 'bg-indigo-900/80 border-indigo-600/50';
 
   const [stats, setStats] = useState<Stats>({ coursesCompleted: 0, currentCourses: 0, totalHours: 0, averageProgress: 0 });
   const [courses, setCourses] = useState<Course[]>([]);
@@ -99,7 +99,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className={`${cardBg} backdrop-blur-2xl border rounded-[32px] p-8 relative overflow-hidden`}
-          style={{ boxShadow: '0 8px 40px rgba(0, 0, 0, 0.12)' }}
+          style={{ boxShadow: '0 8px 40px rgba(99, 102, 241, 0.15)' }}
         >
           <GridPattern theme={theme} />
           <div className="relative z-10">
@@ -128,7 +128,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
               whileHover={{ scale: 1.03, y: -3 }}
               className={`${cardBg} backdrop-blur-xl border rounded-3xl p-5 shadow-lg relative overflow-hidden`}
               style={{
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                boxShadow: '0 4px 20px rgba(99, 102, 241, 0.12)',
               }}
             >
               <GridPattern theme={theme} />
@@ -182,7 +182,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
                   onClick={() => navigate(`/course/${course.id}`)}
                   className={`${cardBg} backdrop-blur-xl border rounded-3xl overflow-hidden shadow-lg cursor-pointer group`}
                   style={{
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 4px 20px rgba(99, 102, 241, 0.12)',
                   }}
                 >
                   <div className="relative h-40 overflow-hidden">

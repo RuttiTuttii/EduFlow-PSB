@@ -23,6 +23,7 @@ export function Breadcrumbs({ theme, items }: BreadcrumbsProps) {
       'register': '/register',
       'student-dashboard': '/student-dashboard',
       'teacher-dashboard': '/teacher-dashboard',
+      'courses': '/courses',
       'course': '/course',
       'assignment': '/assignment',
       'grading': '/grading',

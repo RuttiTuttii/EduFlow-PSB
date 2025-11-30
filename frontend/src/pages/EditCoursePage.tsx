@@ -53,7 +53,8 @@ export function EditCoursePage({ theme, user, onNavigate, onLogout, onToggleThem
       onNavigate={onNavigate}
       onLogout={onLogout}
       onToggleTheme={onToggleTheme}
-      activePage="teacher-dashboard"
+      activePage="edit-course"
+      breadcrumbLabels={{ courseName }}
     >
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}

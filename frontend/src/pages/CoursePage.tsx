@@ -126,6 +126,7 @@ export function CoursePage({ theme, user, onNavigate, onLogout, onToggleTheme }:
       onLogout={onLogout}
       onToggleTheme={onToggleTheme}
       activePage="course"
+      breadcrumbLabels={{ courseName: course.title }}
     >
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Course Header */}

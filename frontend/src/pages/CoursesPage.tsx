@@ -74,8 +74,13 @@ export function CoursesPage({ theme, user, onLogout, onToggleTheme }: CoursesPag
     try {
       await api.courses.enroll(courseId);
       navigate(`/course?id=${courseId}`);
-    } catch (error) {
-      console.error('Failed to enroll:', error);
+    } catch (error: any) {
+      // If already enrolled (409 Conflict), just navigate to the course
+      if (error.message?.includes('Already enrolled') || error.status === 409) {
+        navigate(`/course?id=${courseId}`);
+      } else {
+        console.error('Failed to enroll:', error);
+      }
     }
   };
 
