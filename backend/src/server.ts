@@ -35,8 +35,29 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize database
-await initDb();
+// Database ready flag
+let dbReady = false;
+
+// Health check - MUST be before db init so Railway healthcheck passes
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', dbReady, timestamp: new Date().toISOString() });
+});
+
+// Initialize database (async, non-blocking for startup)
+initDb().then(() => {
+  dbReady = true;
+  console.log('✅ Database ready');
+}).catch(err => {
+  console.error('❌ Database init failed:', err);
+});
+
+// Middleware to check if DB is ready for API calls
+app.use('/api', (req, res, next) => {
+  if (!dbReady) {
+    return res.status(503).json({ error: 'Service starting, please wait...' });
+  }
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRouter);
@@ -46,11 +67,6 @@ app.use('/api/exams', examsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/dashboard', dashboardRouter);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Serve frontend static files in production
 if (process.env.NODE_ENV === 'production') {
