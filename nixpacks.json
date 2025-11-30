@@ -19,5 +19,7 @@
       ]
     }
   },
-  "start": "cd backend && npm start"
+  "start": {
+    "cmd": "NODE_ENV=production node backend/dist/server.js"
+  }
 }
