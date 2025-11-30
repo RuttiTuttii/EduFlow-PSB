@@ -67,3 +67,13 @@
     font-weight: 400;
   }
 }
+
+/* Hide scrollbar for testimonials and horizontal scroll sections */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

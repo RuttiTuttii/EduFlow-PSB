@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
+import { NewLandingPage } from './pages/NewLandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { StudentDashboard } from './pages/StudentDashboard';
@@ -86,7 +87,17 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage theme={theme} onNavigate={navigate} onToggleTheme={toggleTheme} />} />
+      <Route path="/" element={
+        <NewLandingPage 
+          theme={theme} 
+          onNavigate={navigate} 
+          onToggleTheme={toggleTheme}
+          isAuthenticated={!!user}
+          user={user ? { name: user.name, role: user.role || 'student' } : null}
+          onLogout={handleLogout}
+        />
+      } />
+      <Route path="/old-landing" element={<LandingPage theme={theme} onNavigate={navigate} onToggleTheme={toggleTheme} />} />
       <Route path="/login" element={<LoginPage theme={theme} onLogin={handleLogin} onNavigate={navigate} />} />
       <Route path="/register" element={<RegisterPage theme={theme} onRegister={handleLogin} onNavigate={navigate} />} />
 

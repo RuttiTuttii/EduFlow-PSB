@@ -210,3 +210,47 @@ export const aiApi = {
       body: JSON.stringify({ concept, level }),
     }),
 };
+
+// Dashboard endpoints
+export const dashboardApi = {
+  // Student stats
+  getStudentStats: () => apiCall('/dashboard/stats/student'),
+  
+  // Teacher stats
+  getTeacherStats: () => apiCall('/dashboard/stats/teacher'),
+  
+  // Enrolled courses (for students)
+  getEnrolledCourses: () => apiCall('/dashboard/courses/enrolled'),
+  
+  // Teaching courses (for teachers)
+  getTeachingCourses: () => apiCall('/dashboard/courses/teaching'),
+  
+  // Weekly activity data
+  getWeeklyActivity: () => apiCall('/dashboard/activity/weekly'),
+  
+  // Calendar events
+  getCalendarEvents: (month?: number, year?: number) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', String(month));
+    if (year) params.append('year', String(year));
+    const queryString = params.toString();
+    return apiCall(`/dashboard/calendar/events${queryString ? `?${queryString}` : ''}`);
+  },
+  
+  // Create calendar event
+  createCalendarEvent: (title: string, event_date: string, description?: string, event_time?: string, type?: string, course_id?: number) =>
+    apiCall('/dashboard/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify({ title, description, event_date, event_time, type, course_id }),
+    }),
+  
+  // User achievements
+  getAchievements: () => apiCall('/dashboard/achievements'),
+  
+  // Log activity
+  logActivity: (hours_spent?: number, lessons_completed?: number, assignments_completed?: number, exams_taken?: number) =>
+    apiCall('/dashboard/activity/log', {
+      method: 'POST',
+      body: JSON.stringify({ hours_spent, lessons_completed, assignments_completed, exams_taken }),
+    }),
+};

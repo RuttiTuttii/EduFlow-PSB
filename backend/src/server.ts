@@ -9,6 +9,7 @@ import assignmentsRouter from './routes/assignments.js';
 import examsRouter from './routes/exams.js';
 import messagesRouter from './routes/messages.js';
 import aiRouter from './routes/ai.js';
+import dashboardRouter from './routes/dashboard.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/assignments', assignmentsRouter);
 app.use('/api/exams', examsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Health check
 app.get('/health', (req, res) => {

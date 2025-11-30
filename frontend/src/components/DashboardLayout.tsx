@@ -36,12 +36,12 @@ export function DashboardLayout({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const sidebarBg = theme === 'day'
-    ? 'bg-white/60 border-indigo-200/50'
-    : 'bg-indigo-900/40 border-indigo-800/40';
+    ? 'bg-white/70 border-white/50'
+    : 'bg-indigo-900/70 border-indigo-700/30';
 
   const navBg = theme === 'day'
-    ? 'bg-white/80 border-indigo-200/50'
-    : 'bg-indigo-900/60 border-indigo-800/50';
+    ? 'bg-white/70 border-white/50'
+    : 'bg-indigo-900/70 border-indigo-700/30';
 
   const textClass = theme === 'day'
     ? 'text-indigo-900'
@@ -72,71 +72,96 @@ export function DashboardLayout({
       />
       
       {/* Top Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 ${navBg} backdrop-blur-2xl border-b shadow-lg`}>
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
+      <motion.nav 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className={`fixed top-0 left-0 right-0 z-40 ${navBg} backdrop-blur-2xl border-b`}
+        style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}
+      >
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-3">
             <motion.button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-3 rounded-[20px] ${
-                theme === 'day' ? 'hover:bg-indigo-100' : 'hover:bg-indigo-800/50'
-              } transition-colors ${textClass}`}
+              className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                theme === 'day'
+                  ? 'bg-white/80 text-indigo-900'
+                  : 'bg-indigo-800/80 text-white'
+              } backdrop-blur-sm`}
+              style={{
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </motion.button>
             
-            <button onClick={() => navigate('/')} className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="flex items-center gap-2">
               <Logo theme={theme} size="small" />
-              <span className={`text-2xl ${textClass}`} style={{ fontFamily: 'Comfortaa, cursive' }}>
+              <span className={`text-xl font-medium ${textClass}`} style={{ fontFamily: 'Comfortaa, cursive' }}>
                 EduFlow
               </span>
             </button>
           </div>
 
           {/* Search */}
-          <div className="flex-1 max-w-xl mx-8">
-            <div className="relative">
-              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
-                theme === 'day' ? 'text-indigo-400' : 'text-indigo-500'
+          <div className="flex-1 max-w-2xl mx-8">
+            <div className="relative flex items-center">
+              <Search className={`absolute left-5 w-5 h-5 z-10 ${
+                theme === 'day' ? 'text-indigo-400' : 'text-indigo-400'
               }`} />
               <input
                 type="text"
                 placeholder="Поиск курсов, материалов..."
-                className={`w-full pl-12 pr-4 py-3 rounded-[24px] ${
+                className={`w-full pl-14 pr-6 py-3 rounded-full ${
                   theme === 'day'
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-900'
-                    : 'bg-indigo-800/50 border-indigo-700 text-white'
-                } border-2 focus:outline-none focus:border-indigo-500 transition-all`}
+                    ? 'bg-white/80 text-indigo-900 placeholder-indigo-400'
+                    : 'bg-indigo-800/80 text-white placeholder-indigo-400'
+                } backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm`}
+                style={{
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                }}
               />
             </div>
           </div>
 
           {/* User Menu */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <motion.button
               onClick={onToggleTheme}
-              className={`p-3 rounded-[20px] ${
-                theme === 'day' ? 'hover:bg-indigo-100' : 'hover:bg-indigo-800/50'
-              } transition-colors ${textClass}`}
-              whileHover={{ scale: 1.1, rotate: 180 }}
-              whileTap={{ scale: 0.9 }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                theme === 'day'
+                  ? 'bg-white/80 text-indigo-900'
+                  : 'bg-indigo-800/80 text-white'
+              } backdrop-blur-sm`}
+              style={{
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              {theme === 'day' ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />}
+              {theme === 'day' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              <span className="text-sm font-medium hidden md:inline">{theme === 'day' ? 'Ночь' : 'День'}</span>
             </motion.button>
 
             <motion.button
               onClick={() => setNotificationsOpen(true)}
-              className={`relative p-3 rounded-[20px] ${
-                theme === 'day' ? 'hover:bg-indigo-100' : 'hover:bg-indigo-800/50'
-              } transition-colors ${textClass}`}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-full ${
+                theme === 'day'
+                  ? 'bg-white/80 text-indigo-900'
+                  : 'bg-indigo-800/80 text-white'
+              } backdrop-blur-sm`}
+              style={{
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Bell className="w-6 h-6" />
+              <Bell className="w-4 h-4" />
               <motion.span 
-                className="absolute top-2 right-2 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center"
-                animate={{ scale: [1, 1.2, 1] }}
+                className="w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center"
+                animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 3
@@ -145,82 +170,109 @@ export function DashboardLayout({
 
             <motion.button
               onClick={() => setSettingsOpen(true)}
-              className={`p-3 rounded-[20px] ${
-                theme === 'day' ? 'hover:bg-indigo-100' : 'hover:bg-indigo-800/50'
-              } transition-colors ${textClass}`}
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                theme === 'day'
+                  ? 'bg-white/80 text-indigo-900'
+                  : 'bg-indigo-800/80 text-white'
+              } backdrop-blur-sm`}
+              style={{
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Settings className="w-6 h-6" />
+              <Settings className="w-4 h-4" />
             </motion.button>
 
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg`}>
+            <motion.div 
+              className={`flex items-center gap-3 px-4 py-2 rounded-full ${
+                theme === 'day'
+                  ? 'bg-white/80 text-indigo-900'
+                  : 'bg-indigo-800/80 text-white'
+              } backdrop-blur-sm`}
+              style={{
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium`}>
                 {user?.name.charAt(0).toUpperCase()}
               </div>
-              <div className={`${textClass} hidden md:block`}>
-                <div>{user?.name}</div>
-                <div className="text-sm opacity-70">{user?.role === 'student' ? 'Студент' : 'Преподаватель'}</div>
+              <div className="hidden md:block">
+                <div className="text-sm font-medium">{user?.name}</div>
+                <div className="text-xs opacity-70">{user?.role === 'student' ? 'Студент' : 'Преподаватель'}</div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
-      {/* Sidebar - removed AnimatePresence */}
-      {sidebarOpen && (
-        <aside
-          className={`fixed left-0 top-20 bottom-0 w-72 ${sidebarBg} backdrop-blur-2xl border-r shadow-2xl z-30 overflow-y-auto transition-all duration-300`}
-        >
-          <nav className="p-6 space-y-2">
+      {/* Sidebar */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.aside
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`fixed left-0 top-20 bottom-0 w-72 ${sidebarBg} backdrop-blur-2xl border-r z-30 overflow-y-auto`}
+            style={{ boxShadow: '8px 0 32px rgba(0, 0, 0, 0.1)' }}
+          >
+          <nav className="p-4 space-y-2">
             {menuItems.map((item) => (
               <motion.button
                 key={item.id}
                 onClick={() => navigate(item.id)}
-                className={`relative w-full flex items-center gap-4 px-6 py-4 rounded-[24px] transition-all duration-300 ${
+                className={`relative w-full flex items-center gap-3 px-5 py-3 rounded-full transition-all duration-300 ${
                   activePage === item.id
-                    ? user?.role === 'student'
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-lg'
+                    ? theme === 'day'
+                      ? 'bg-white text-indigo-900 shadow-lg'
+                      : 'bg-indigo-800 text-white shadow-lg'
                     : theme === 'day'
-                    ? 'hover:bg-white/80 text-indigo-700'
+                    ? 'hover:bg-white/60 text-indigo-700'
                     : 'hover:bg-indigo-800/50 text-indigo-200'
                 }`}
-                whileHover={{ scale: 1.02, x: 5 }}
+                style={{
+                  boxShadow: activePage === item.id ? '0 4px 16px rgba(0, 0, 0, 0.1)' : 'none',
+                }}
+                whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <item.icon className="w-6 h-6" />
-                <span className="text-lg">{item.label}</span>
+                <item.icon className="w-5 h-5" />
+                <span className="text-sm font-medium">{item.label}</span>
                 {item.badge && (
-                  <span className="absolute top-3 right-3 w-6 h-6 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+                  <span className="absolute top-2 right-3 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
                     {item.badge}
                   </span>
                 )}
               </motion.button>
             ))}
 
-            <div className={`pt-6 mt-6 border-t ${theme === 'day' ? 'border-indigo-200' : 'border-indigo-700/30'}`}>
+            <div className={`pt-4 mt-4 border-t ${theme === 'day' ? 'border-indigo-200/30' : 'border-indigo-700/30'}`}>
               <motion.button
                 onClick={onLogout}
-                className={`w-full flex items-center gap-4 px-6 py-4 rounded-[24px] ${
+                className={`w-full flex items-center gap-3 px-5 py-3 rounded-full ${
                   theme === 'day'
-                    ? 'hover:bg-red-100 text-red-700'
-                    : 'hover:bg-red-900/50 text-red-400'
+                    ? 'hover:bg-red-50 text-red-600'
+                    : 'hover:bg-red-900/30 text-red-400'
                 } transition-all duration-300`}
-                whileHover={{ scale: 1.02, x: 5 }}
+                whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <LogOut className="w-6 h-6" />
-                <span className="text-lg">Выйти</span>
+                <LogOut className="w-5 h-5" />
+                <span className="text-sm font-medium">Выйти</span>
               </motion.button>
             </div>
           </nav>
-        </aside>
+        </motion.aside>
       )}
+      </AnimatePresence>
 
       {/* Main Content */}
-      <main 
-        className={`relative z-10 pt-24 transition-all duration-300 ${
+      <motion.main 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className={`relative z-10 pt-24 transition-all duration-500 ease-out ${
           sidebarOpen ? 'pl-72' : 'pl-0'
         }`}
       >
@@ -233,7 +285,7 @@ export function DashboardLayout({
           )}
           {children}
         </div>
-      </main>
+      </motion.main>
     </div>
   );
 }
