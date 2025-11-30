@@ -5,7 +5,7 @@ import { getDb } from '../db.js';
 const router = Router();
 
 // ProxyAPI configuration for hackathon
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'sk-68J3E3GDfyBQotTdg9NEexCqc8OMqUST';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'sk-x4n4WFJjF4bDolBuRLt82R8mhMQC9u9G';
 // Use OpenAI-compatible endpoint from ProxyAPI (more reliable)
 const PROXY_BASE_URL = 'https://api.proxyapi.ru/openai/v1';
 
@@ -30,7 +30,7 @@ async function callGemini(prompt: string): Promise<string> {
         'Authorization': `Bearer ${GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
@@ -56,8 +56,8 @@ async function callGemini(prompt: string): Promise<string> {
   }
 }
 
-// Get user context from DB
-function getUserContext(userId: number): any {
+// Get student context from DB
+function getStudentContext(userId: number): any {
   const db = getDb();
   
   // Get enrolled courses with progress
@@ -94,17 +94,134 @@ function getUserContext(userId: number): any {
     )
   `).all(userId, userId);
 
-  // Get debts
+  // Get debts (from failed/missed assignments and exams)
   const debts = db.prepare(`
-    SELECT * FROM student_debts WHERE student_id = ? AND status = 'pending'
+    SELECT sd.*, c.title as course_title
+    FROM student_debts sd
+    LEFT JOIN courses c ON sd.course_id = c.id
+    WHERE sd.student_id = ? AND sd.status = 'pending'
   `).all(userId);
+
+  // Also check for overdue assignments as debts
+  const overdueAssignments = db.prepare(`
+    SELECT a.id, a.title, a.due_date, c.title as course_title, 'assignment' as debt_type
+    FROM assignments a
+    JOIN courses c ON a.course_id = c.id
+    JOIN enrollments e ON e.course_id = c.id AND e.student_id = ?
+    WHERE a.due_date < datetime('now')
+    AND NOT EXISTS (
+      SELECT 1 FROM submissions s 
+      WHERE s.assignment_id = a.id AND s.student_id = ?
+    )
+  `).all(userId, userId);
 
   // Get recent activity
   const activity = db.prepare(`
     SELECT * FROM user_activity WHERE user_id = ? ORDER BY activity_date DESC LIMIT 7
   `).all(userId);
 
-  return { courses, pendingAssignments, upcomingExams, debts, activity };
+  return { 
+    courses, 
+    pendingAssignments, 
+    upcomingExams, 
+    debts: [...debts, ...overdueAssignments], 
+    activity 
+  };
+}
+
+// Get teacher context from DB
+function getTeacherContext(userId: number): any {
+  const db = getDb();
+  
+  // Get courses taught by this teacher
+  const courses = db.prepare(`
+    SELECT c.*, 
+           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count,
+           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as enrolled_count,
+           (SELECT COUNT(*) FROM lessons WHERE course_id = c.id) as lesson_count,
+           (SELECT COUNT(*) FROM assignments WHERE course_id = c.id) as assignment_count,
+           (SELECT COUNT(*) FROM exams WHERE course_id = c.id) as exam_count
+    FROM courses c
+    WHERE c.teacher_id = ?
+  `).all(userId);
+
+  // Get pending submissions to grade
+  const pendingSubmissions = db.prepare(`
+    SELECT s.id, s.submitted_at, s.content, a.title as assignment_title, 
+           c.title as course_title, u.name as student_name
+    FROM submissions s
+    JOIN assignments a ON s.assignment_id = a.id
+    JOIN courses c ON a.course_id = c.id
+    JOIN users u ON s.student_id = u.id
+    WHERE c.teacher_id = ? AND s.grade IS NULL
+    ORDER BY s.submitted_at ASC
+  `).all(userId);
+
+  // Get all students enrolled in teacher's courses
+  const students = db.prepare(`
+    SELECT DISTINCT u.id, u.name, u.email, e.progress, c.title as course_title
+    FROM enrollments e
+    JOIN users u ON e.student_id = u.id
+    JOIN courses c ON e.course_id = c.id
+    WHERE c.teacher_id = ?
+    ORDER BY u.name
+  `).all(userId);
+
+  // Get student statistics per course
+  const studentStats = db.prepare(`
+    SELECT c.id as course_id, c.title as course_title,
+           COUNT(DISTINCT e.student_id) as enrolled_count,
+           AVG(e.progress) as avg_progress,
+           (SELECT COUNT(*) FROM submissions sub 
+            JOIN assignments a ON sub.assignment_id = a.id 
+            WHERE a.course_id = c.id AND sub.grade IS NOT NULL) as graded_count
+    FROM courses c
+    LEFT JOIN enrollments e ON c.id = e.course_id
+    WHERE c.teacher_id = ?
+    GROUP BY c.id
+  `).all(userId);
+
+  // Get students with low progress (potential at-risk students)
+  const atRiskStudents = db.prepare(`
+    SELECT u.id, u.name, u.email, e.progress, c.title as course_title
+    FROM enrollments e
+    JOIN users u ON e.student_id = u.id
+    JOIN courses c ON e.course_id = c.id
+    WHERE c.teacher_id = ? AND e.progress < 30
+    ORDER BY e.progress ASC
+  `).all(userId);
+
+  return { 
+    courses, 
+    pendingSubmissions, 
+    students,
+    studentStats,
+    atRiskStudents
+  };
+}
+
+// Get context based on user role
+function getUserContext(userId: number, role: string = 'student'): any {
+  try {
+    if (role === 'teacher') {
+      return getTeacherContext(userId);
+    }
+    return getStudentContext(userId);
+  } catch (error) {
+    console.error('Error getting user context:', error);
+    // Return empty context on error
+    return {
+      courses: [],
+      pendingAssignments: [],
+      upcomingExams: [],
+      debts: [],
+      activity: [],
+      students: [],
+      pendingSubmissions: [],
+      studentStats: [],
+      atRiskStudents: []
+    };
+  }
 }
 
 // Get AI assistance with user context
@@ -112,25 +229,56 @@ router.post('/help', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { topic, question, context, useContext = true } = req.body;
     const userId = req.user!.id;
+    const db = getDb();
 
     if (!question) {
       return res.status(400).json({ error: 'Вопрос не указан' });
     }
 
-    // Get user context if requested
+    // Get user role
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as any;
+    const isTeacher = user?.role === 'teacher';
+
+    // Get context based on role
     let userContextStr = '';
     if (useContext) {
-      const userContext = getUserContext(userId);
-      userContextStr = `
-КОНТЕКСТ СТУДЕНТА:
-- Записан на курсы: ${userContext.courses.map((c: any) => `${c.title} (прогресс: ${c.progress}%)`).join(', ') || 'нет курсов'}
-- Несданные задания: ${userContext.pendingAssignments.length} шт.
-- Предстоящие экзамены: ${userContext.upcomingExams.length} шт.
-- Академические долги: ${userContext.debts.length} шт.
+      if (isTeacher) {
+        const teacherContext = getTeacherContext(userId);
+        userContextStr = `
+КОНТЕКСТ ПРЕПОДАВАТЕЛЯ:
+- Ведёт курсы: ${teacherContext.courses.map((c: any) => `${c.title} (${c.student_count} студентов)`).join(', ') || 'нет курсов'}
+- Работ на проверку: ${teacherContext.pendingSubmissions.length} шт.
+- Студентов с низким прогрессом: ${teacherContext.atRiskStudents.length} чел.
 `;
+      } else {
+        const studentContext = getStudentContext(userId);
+        userContextStr = `
+КОНТЕКСТ СТУДЕНТА:
+- Записан на курсы: ${studentContext.courses.map((c: any) => `${c.title} (прогресс: ${c.progress || 0}%)`).join(', ') || 'нет курсов'}
+- Несданные задания: ${studentContext.pendingAssignments.length} шт.
+- Предстоящие экзамены: ${studentContext.upcomingExams.length} шт.
+- Академические долги: ${studentContext.debts.length} шт.
+${studentContext.debts.length > 0 ? `- Долги: ${studentContext.debts.map((d: any) => d.title || d.course_title).join(', ')}` : ''}
+`;
+      }
     }
 
-    const prompt = `Ты — образовательный помощник EduFlow, который помогает студентам РАЗОБРАТЬСЯ в материале самостоятельно.
+    const prompt = isTeacher ? `Ты — AI-ассистент EduFlow для преподавателей.
+
+ТВОИ ВОЗМОЖНОСТИ:
+1. Помощь в создании учебных материалов
+2. Анализ успеваемости студентов
+3. Советы по улучшению курсов
+4. Генерация идей для заданий и тестов
+5. Помощь с обратной связью для студентов
+${userContextStr}
+Тема: ${topic || 'Общая'}
+Контекст: ${context || 'Дополнительный контекст отсутствует'}
+
+Вопрос преподавателя: ${question}
+
+Дай полезный и конкретный ответ на русском языке.`
+    : `Ты — образовательный помощник EduFlow, который помогает студентам РАЗОБРАТЬСЯ в материале самостоятельно.
 
 ВАЖНЫЕ ПРАВИЛА:
 1. НИКОГДА не давай прямых ответов на задания, тесты или экзаменационные вопросы
@@ -163,7 +311,8 @@ ${userContextStr}
 router.post('/create-debt-plan', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const userContext = getUserContext(userId);
+    const role = req.user?.role || 'student';
+    const userContext = getUserContext(userId, role);
     const db = getDb();
 
     if (userContext.debts.length === 0 && userContext.pendingAssignments.length === 0) {
@@ -257,7 +406,8 @@ ${userContext.courses.map((c: any) => `- ${c.title} (прогресс: ${c.progr
 router.post('/recommendations', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const userContext = getUserContext(userId);
+    const role = req.user?.role || 'student';
+    const userContext = getUserContext(userId, role);
 
     const prompt = `На основе данных о студенте дай персонализированные рекомендации.
 
@@ -294,9 +444,11 @@ router.post('/recommendations', authMiddleware, async (req: Request, res: Respon
   }
 });
 
-// NEW: Get available templates/tools
+// NEW: Get available templates/tools (role-aware)
 router.get('/templates', authMiddleware, (req: Request, res: Response) => {
-  const templates = [
+  const role = req.user?.role || 'student';
+
+  const studentTemplates = [
     {
       id: 'debt_plan',
       icon: '📋',
@@ -334,7 +486,53 @@ router.get('/templates', authMiddleware, (req: Request, res: Response) => {
     }
   ];
 
-  res.json({ templates });
+  const teacherTemplates = [
+    {
+      id: 'grade_feedback',
+      icon: '✍️',
+      title: 'Составить отзыв на работу',
+      description: 'Сгенерировать развёрнутый отзыв для оценки работы студента',
+      action: '/api/ai/grade-feedback'
+    },
+    {
+      id: 'course_content',
+      icon: '📚',
+      title: 'Создать материал для урока',
+      description: 'Сгенерировать план урока или учебный материал по теме',
+      action: '/api/ai/course-content'
+    },
+    {
+      id: 'student_analysis',
+      icon: '📊',
+      title: 'Анализ успеваемости',
+      description: 'Получить аналитику по успеваемости студентов курса',
+      action: '/api/ai/student-analysis'
+    },
+    {
+      id: 'assignment_ideas',
+      icon: '💡',
+      title: 'Идеи для заданий',
+      description: 'Сгенерировать идеи для практических заданий по теме',
+      action: '/api/ai/assignment-ideas'
+    },
+    {
+      id: 'exam_questions',
+      icon: '📝',
+      title: 'Вопросы для экзамена',
+      description: 'Сгенерировать вопросы для тестирования знаний студентов',
+      action: '/api/ai/exam-questions'
+    },
+    {
+      id: 'explain_concept',
+      icon: '📖',
+      title: 'Объяснить тему',
+      description: 'Получить простое объяснение сложной темы для студентов',
+      action: '/api/ai/explain'
+    }
+  ];
+
+  const templates = role === 'teacher' ? teacherTemplates : studentTemplates;
+  res.json({ templates, role });
 });
 
 // NEW: Exam preparation plan
@@ -564,11 +762,256 @@ ${courseContext ? `Контекст курса: ${courseContext}` : ''}
   }
 });
 
+// ============ TEACHER-SPECIFIC ENDPOINTS ============
+
+// Generate grade feedback for student work
+router.post('/grade-feedback', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ error: 'Доступно только для преподавателей' });
+    }
+
+    const { studentWork, assignmentTitle, rubric, maxPoints = 100 } = req.body;
+
+    if (!studentWork) {
+      return res.status(400).json({ error: 'Работа студента не указана' });
+    }
+
+    const prompt = `Ты — опытный преподаватель, который составляет развёрнутый отзыв на работу студента.
+
+ЗАДАНИЕ: ${assignmentTitle || 'Не указано'}
+КРИТЕРИИ ОЦЕНКИ: ${rubric || 'Общие академические стандарты'}
+МАКСИМАЛЬНЫЙ БАЛЛ: ${maxPoints}
+
+РАБОТА СТУДЕНТА:
+${studentWork}
+
+Составь развёрнутый отзыв в формате JSON:
+{
+  "suggestedScore": число от 0 до ${maxPoints},
+  "strengths": ["сильная сторона 1", "сильная сторона 2"],
+  "improvements": ["что улучшить 1", "что улучшить 2"],
+  "detailedFeedback": "подробный конструктивный отзыв для студента (2-3 абзаца)",
+  "teacherNotes": "заметки для преподавателя (не для студента)"
+}
+
+Будь конструктивным и поддерживающим. Цель — помочь студенту развиваться.`;
+
+    const text = await callGemini(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const feedback = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    res.json({ feedback });
+  } catch (error) {
+    console.error('AI Grade Feedback Error:', error);
+    res.status(500).json({ error: 'Не удалось создать отзыв' });
+  }
+});
+
+// Generate course content / lesson plan
+router.post('/course-content', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ error: 'Доступно только для преподавателей' });
+    }
+
+    const { topic, courseTitle, targetAudience = 'студенты', duration = '45 минут' } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Тема не указана' });
+    }
+
+    const prompt = `Создай план урока и учебные материалы.
+
+ТЕМА: ${topic}
+КУРС: ${courseTitle || 'Не указан'}
+АУДИТОРИЯ: ${targetAudience}
+ДЛИТЕЛЬНОСТЬ: ${duration}
+
+Создай материал в формате JSON:
+{
+  "lessonTitle": "название урока",
+  "objectives": ["цель 1", "цель 2", "цель 3"],
+  "outline": [
+    {
+      "section": "название раздела",
+      "duration": "время",
+      "content": "описание содержания",
+      "activities": ["активность 1", "активность 2"]
+    }
+  ],
+  "keyTerms": [
+    {"term": "термин", "definition": "определение"}
+  ],
+  "discussionQuestions": ["вопрос 1", "вопрос 2"],
+  "homework": "описание домашнего задания",
+  "resources": ["ресурс 1", "ресурс 2"]
+}`;
+
+    const text = await callGemini(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const content = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    res.json({ content });
+  } catch (error) {
+    console.error('AI Course Content Error:', error);
+    res.status(500).json({ error: 'Не удалось создать материал' });
+  }
+});
+
+// Analyze student performance
+router.post('/student-analysis', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ error: 'Доступно только для преподавателей' });
+    }
+
+    const userId = req.user!.id;
+    const { courseId } = req.body;
+    const teacherContext = getTeacherContext(userId);
+
+    let courseData = teacherContext.courses;
+    if (courseId) {
+      courseData = teacherContext.courses.filter((c: any) => c.id === parseInt(courseId));
+    }
+
+    const prompt = `Ты — аналитик образовательных данных. Проанализируй успеваемость студентов.
+
+ДАННЫЕ КУРСОВ ПРЕПОДАВАТЕЛЯ:
+${courseData.map((c: any) => `- ${c.title}: ${c.enrolled_count} студентов`).join('\n') || 'Нет курсов'}
+
+СТУДЕНТЫ И ИХ ПРОГРЕСС:
+${teacherContext.students.slice(0, 20).map((s: any) => `- ${s.name} (${s.email}): курс "${s.course_title}", прогресс ${s.progress}%`).join('\n') || 'Нет студентов'}
+
+ОЖИДАЮЩИЕ ПРОВЕРКИ:
+${teacherContext.pendingSubmissions.length} работ ожидают проверки
+
+Дай аналитику в формате JSON:
+{
+  "summary": "общий обзор успеваемости",
+  "averageProgress": число,
+  "atRiskStudents": [
+    {"name": "имя", "reason": "причина риска", "recommendation": "рекомендация"}
+  ],
+  "topPerformers": ["имя 1", "имя 2"],
+  "insights": ["инсайт 1", "инсайт 2", "инсайт 3"],
+  "recommendations": ["рекомендация 1", "рекомендация 2"]
+}`;
+
+    const text = await callGemini(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    res.json({ analysis, rawData: { courses: courseData.length, students: teacherContext.students.length } });
+  } catch (error) {
+    console.error('AI Student Analysis Error:', error);
+    res.status(500).json({ error: 'Не удалось проанализировать успеваемость' });
+  }
+});
+
+// Generate assignment ideas
+router.post('/assignment-ideas', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ error: 'Доступно только для преподавателей' });
+    }
+
+    const { topic, courseTitle, difficulty = 'medium', count = 5 } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Тема не указана' });
+    }
+
+    const difficultyRu = difficulty === 'easy' ? 'лёгкой' : difficulty === 'hard' ? 'сложной' : 'средней';
+
+    const prompt = `Сгенерируй ${count} идей для практических заданий по теме "${topic}" ${difficultyRu} сложности.
+
+${courseTitle ? `КУРС: ${courseTitle}` : ''}
+
+Формат JSON:
+{
+  "assignments": [
+    {
+      "title": "название задания",
+      "description": "описание задания",
+      "objectives": ["чему научится студент"],
+      "estimatedTime": "примерное время выполнения",
+      "difficulty": "${difficulty}",
+      "rubric": ["критерий оценки 1", "критерий оценки 2"]
+    }
+  ]
+}`;
+
+    const text = await callGemini(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const ideas = jsonMatch ? JSON.parse(jsonMatch[0]) : { assignments: [] };
+
+    res.json(ideas);
+  } catch (error) {
+    console.error('AI Assignment Ideas Error:', error);
+    res.status(500).json({ error: 'Не удалось сгенерировать идеи' });
+  }
+});
+
+// Generate exam questions
+router.post('/exam-questions', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ error: 'Доступно только для преподавателей' });
+    }
+
+    const { topic, courseTitle, count = 10, questionTypes = ['multiple_choice', 'open_ended'] } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Тема не указана' });
+    }
+
+    const prompt = `Создай ${count} экзаменационных вопросов по теме "${topic}".
+
+${courseTitle ? `КУРС: ${courseTitle}` : ''}
+ТИПЫ ВОПРОСОВ: ${questionTypes.join(', ')}
+
+Формат JSON:
+{
+  "examTitle": "Экзамен по ${topic}",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "question": "текст вопроса",
+      "options": ["вариант 1", "вариант 2", "вариант 3", "вариант 4"],
+      "correctAnswer": 0,
+      "points": 5,
+      "explanation": "почему это правильный ответ"
+    },
+    {
+      "type": "open_ended",
+      "question": "текст вопроса",
+      "expectedAnswer": "ключевые моменты ответа",
+      "points": 10,
+      "gradingCriteria": ["критерий 1", "критерий 2"]
+    }
+  ],
+  "totalPoints": общее количество баллов,
+  "recommendedTime": "рекомендуемое время"
+}`;
+
+    const text = await callGemini(prompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const exam = jsonMatch ? JSON.parse(jsonMatch[0]) : { questions: [] };
+
+    res.json(exam);
+  } catch (error) {
+    console.error('AI Exam Questions Error:', error);
+    res.status(500).json({ error: 'Не удалось сгенерировать вопросы' });
+  }
+});
+
 // NEW: Get user's study context
 router.get('/context', authMiddleware, (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const context = getUserContext(userId);
+    const role = req.user?.role || 'student';
+    const context = getUserContext(userId, role);
     res.json(context);
   } catch (error) {
     console.error('Get Context Error:', error);
@@ -654,6 +1097,7 @@ router.post('/chats/:chatId/messages', authMiddleware, async (req: Request, res:
   try {
     const db = getDb();
     const userId = req.user!.id;
+    const role = req.user?.role || 'student';
     const chatId = parseInt(req.params.chatId);
     const { content, useContext = true } = req.body;
 
@@ -676,31 +1120,52 @@ router.post('/chats/:chatId/messages', authMiddleware, async (req: Request, res:
       LIMIT 10
     `).all(chatId).reverse();
 
-    // Build context
+    // Build context based on role
     let userContextStr = '';
+    let systemPrompt = '';
+    
     if (useContext) {
-      const userContext = getUserContext(userId);
-      userContextStr = `
+      const userContext = getUserContext(userId, role);
+      
+      if (role === 'teacher') {
+        userContextStr = `
+КОНТЕКСТ ПРЕПОДАВАТЕЛЯ:
+- Ведёт курсов: ${userContext.courses.length}
+- Курсы: ${userContext.courses.map((c: any) => c.title).join(', ') || 'нет'}
+- Работ на проверку: ${userContext.pendingSubmissions.length}
+- Студентов с низким прогрессом: ${userContext.atRiskStudents?.length || 0}
+`;
+        systemPrompt = `Ты — AI-ассистент для преподавателя на платформе EduFlow.
+${userContextStr}
+Помогай с учебными материалами, анализом успеваемости, заданиями и методическими рекомендациями.
+Отвечай профессионально и конкретно на русском языке.`;
+      } else {
+        userContextStr = `
 КОНТЕКСТ СТУДЕНТА:
 - Курсы: ${userContext.courses.map((c: any) => `${c.title} (${c.progress}%)`).join(', ') || 'нет'}
 - Несданных заданий: ${userContext.pendingAssignments.length}
 - Экзаменов: ${userContext.upcomingExams.length}
 - Долгов: ${userContext.debts.length}
 `;
+        systemPrompt = `Ты — образовательный помощник EduFlow.
+${userContextStr}
+ВАЖНО: Не давай готовых ответов на задания/тесты. Помогай понять, не решай за студента.
+Отвечай на русском языке кратко и по делу.`;
+      }
+    } else {
+      systemPrompt = role === 'teacher' 
+        ? 'Ты — AI-ассистент для преподавателя. Помогай с учебными материалами. Отвечай на русском.'
+        : 'Ты — образовательный помощник EduFlow. Не давай готовых ответов. Отвечай на русском.';
     }
 
-    const historyStr = history.map((m: any) => `${m.role === 'user' ? 'Студент' : 'AI'}: ${m.content}`).join('\n');
+    const historyStr = history.map((m: any) => `${m.role === 'user' ? (role === 'teacher' ? 'Преподаватель' : 'Студент') : 'AI'}: ${m.content}`).join('\n');
 
-    const prompt = `Ты — образовательный помощник EduFlow.
-${userContextStr}
+    const prompt = `${systemPrompt}
 
 ИСТОРИЯ ЧАТА:
 ${historyStr}
 
-ВАЖНО: Не давай готовых ответов на задания/тесты. Помогай понять, не решай за студента.
-Отвечай на русском языке кратко и по делу.
-
-Последнее сообщение студента: ${content}`;
+Последнее сообщение ${role === 'teacher' ? 'преподавателя' : 'студента'}: ${content}`;
 
     const responseText = await callGemini(prompt);
 
@@ -733,6 +1198,7 @@ router.post('/chats/:chatId/messages/stream', authMiddleware, async (req: Reques
   try {
     const db = getDb();
     const userId = req.user!.id;
+    const role = req.user?.role || 'student';
     const chatId = parseInt(req.params.chatId);
     const { content, useContext = true } = req.body;
 
@@ -755,14 +1221,35 @@ router.post('/chats/:chatId/messages/stream', authMiddleware, async (req: Reques
       LIMIT 10
     `).all(chatId).reverse();
 
-    // Build context
+    // Build context based on role
     let userContextStr = '';
+    let systemPrompt = '';
+    
     if (useContext) {
-      const userContext = getUserContext(userId);
-      userContextStr = `КОНТЕКСТ: Курсы: ${userContext.courses.map((c: any) => c.title).join(', ') || 'нет'}. Задания: ${userContext.pendingAssignments.length}. Экзамены: ${userContext.upcomingExams.length}.`;
+      const userContext = getUserContext(userId, role);
+      
+      if (role === 'teacher') {
+        userContextStr = `КОНТЕКСТ ПРЕПОДАВАТЕЛЯ: Ведёт курсы: ${userContext.courses.map((c: any) => c.title).join(', ') || 'нет'}. Студентов: ${userContext.students.length}. Работ на проверку: ${userContext.pendingSubmissions.length}.`;
+        systemPrompt = `Ты — AI-ассистент для преподавателя на платформе EduFlow. ${userContextStr}
+Помогай с:
+- Созданием учебных материалов и планов уроков
+- Анализом успеваемости студентов
+- Генерацией заданий и вопросов для экзаменов
+- Составлением отзывов на работы студентов
+- Методическими рекомендациями
+Отвечай профессионально и конкретно на русском языке.`;
+      } else {
+        userContextStr = `КОНТЕКСТ СТУДЕНТА: Курсы: ${userContext.courses.map((c: any) => `${c.title} (${c.progress}%)`).join(', ') || 'нет'}. Долгов: ${userContext.debts.length}. Несданных заданий: ${userContext.pendingAssignments.length}. Экзаменов впереди: ${userContext.upcomingExams.length}.`;
+        systemPrompt = `Ты — образовательный помощник EduFlow для студента. ${userContextStr}
+ВАЖНО: Никогда не давай готовых ответов на задания и экзамены. Помогай понять материал, направляй к правильному решению, но не решай за студента. Отвечай кратко и полезно на русском языке.`;
+      }
+    } else {
+      systemPrompt = role === 'teacher' 
+        ? 'Ты — AI-ассистент для преподавателя на платформе EduFlow. Помогай с учебными материалами. Отвечай на русском.'
+        : 'Ты — образовательный помощник EduFlow. Не давай готовых ответов на задания. Помогай понять. Отвечай на русском.';
     }
 
-    const historyStr = history.slice(-6).map((m: any) => `${m.role === 'user' ? 'Студент' : 'AI'}: ${m.content}`).join('\n');
+    const historyStr = history.slice(-6).map((m: any) => `${m.role === 'user' ? (role === 'teacher' ? 'Преподаватель' : 'Студент') : 'AI'}: ${m.content}`).join('\n');
 
     // Set up SSE
     res.setHeader('Content-Type', 'text/event-stream');
@@ -777,11 +1264,11 @@ router.post('/chats/:chatId/messages/stream', authMiddleware, async (req: Reques
           'Authorization': `Bearer ${GEMINI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
-              content: `Ты — образовательный помощник EduFlow. ${userContextStr} Не давай готовых ответов на задания. Помогай понять. Отвечай кратко на русском.`
+              content: systemPrompt
             },
             ...history.slice(-6).map((m: any) => ({
               role: m.role,
@@ -850,18 +1337,29 @@ router.post('/chats/:chatId/messages/stream', authMiddleware, async (req: Reques
     } catch (error) {
       console.error('Streaming error:', error);
       // Fallback to non-streaming
-      const responseText = await callGemini(`${userContextStr}\n\n${historyStr}\n\nСтудент: ${content}`);
-      
-      const result = db.prepare(`
-        INSERT INTO ai_messages (chat_id, role, content) VALUES (?, 'assistant', ?)
-      `).run(chatId, responseText);
+      try {
+        console.log('Trying fallback non-streaming...');
+        const fallbackPrompt = `${systemPrompt}\n\nИстория:\n${historyStr}\n\nПользователь: ${content}`;
+        const responseText = await callGemini(fallbackPrompt);
+        console.log('Fallback response received, length:', responseText.length);
+        
+        const result = db.prepare(`
+          INSERT INTO ai_messages (chat_id, role, content) VALUES (?, 'assistant', ?)
+        `).run(chatId, responseText);
 
-      res.write(`data: ${JSON.stringify({ content: responseText, done: true, messageId: result.lastInsertRowid })}\n\n`);
-      res.end();
+        res.write(`data: ${JSON.stringify({ content: responseText, done: true, messageId: result.lastInsertRowid })}\n\n`);
+        res.end();
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        const errorMsg = fallbackError instanceof Error ? fallbackError.message : 'Unknown error';
+        res.write(`data: ${JSON.stringify({ error: 'Ошибка AI: ' + errorMsg, done: true })}\n\n`);
+        res.end();
+      }
     }
   } catch (error) {
     console.error('Stream AI Message Error:', error);
-    res.write(`data: ${JSON.stringify({ error: 'Ошибка', done: true })}\n\n`);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    res.write(`data: ${JSON.stringify({ error: 'Ошибка: ' + errorMsg, done: true })}\n\n`);
     res.end();
   }
 });

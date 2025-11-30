@@ -37,6 +37,25 @@ router.get('/conversations', authMiddleware, (req: Request, res: Response) => {
   }
 });
 
+// Get total unread count
+router.get('/unread/count', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const userId = req.user!.id;
+    
+    const result = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM messages 
+      WHERE recipient_id = ? AND read = 0 AND deleted_by_recipient = 0
+    `).get(userId) as { count: number };
+
+    res.json({ count: result.count });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch unread count' });
+  }
+});
+
 // Get or create conversation with a user
 router.post('/conversations', authMiddleware, (req: Request, res: Response) => {
   try {

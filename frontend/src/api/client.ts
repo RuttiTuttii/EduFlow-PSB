@@ -185,11 +185,13 @@ export const messagesApi = {
   getAvailableUsers: () =>
     apiCall('/messages/available-users'),
   getMessages: (userId: number) =>
-    apiCall(`/messages/user/${userId}`),
-  send: (recipient_id: number, content: string) =>
+    apiCall(`/messages/direct/${userId}`),
+  getUnreadCount: () =>
+    apiCall('/messages/unread/count'),
+  send: (recipientId: number, content: string) =>
     apiCall('/messages/send', {
       method: 'POST',
-      body: JSON.stringify({ recipient_id, content }),
+      body: JSON.stringify({ recipientId, content }),
     }),
   deleteMessage: (messageId: number) =>
     apiCall(`/messages/${messageId}`, { method: 'DELETE' }),

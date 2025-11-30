@@ -45,7 +45,7 @@ export function DashboardLayout({
   breadcrumbLabels
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   
@@ -55,11 +55,19 @@ export function DashboardLayout({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searching, setSearching] = useState(false);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Load all courses for search
+  // Load all courses for search and unread count
   useEffect(() => {
     api.courses.getAll().then(setAllCourses).catch(console.error);
+    api.messages.getUnreadCount().then(data => setUnreadCount(data.count)).catch(console.error);
+    
+    // Poll for unread messages
+    const interval = setInterval(() => {
+      api.messages.getUnreadCount().then(data => setUnreadCount(data.count)).catch(console.error);
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Filter courses based on search query
@@ -106,7 +114,7 @@ export function DashboardLayout({
   const menuItems = [
     { id: user?.role === 'student' ? '/student-dashboard' : '/teacher-dashboard', icon: Home, label: 'Главная' },
     { id: '/courses', icon: BookOpen, label: 'Курсы' },
-    { id: '/messenger', icon: MessageSquare, label: 'Сообщения', badge: 3 },
+    { id: '/messenger', icon: MessageSquare, label: 'Сообщения', badge: unreadCount > 0 ? unreadCount : undefined },
     { id: '/ai-assistant', icon: Bot, label: 'AI Помощник' },
   ];
 
@@ -138,7 +146,7 @@ export function DashboardLayout({
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className={`fixed top-0 left-0 right-0 z-40 ${navBg} backdrop-blur-2xl border-b`}
+        className={`fixed top-0 left-0 right-0 z-50 ${navBg} backdrop-blur-2xl border-b`}
         style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}
       >
         <div className="flex items-center justify-between px-6 py-3">
@@ -170,7 +178,7 @@ export function DashboardLayout({
           {/* Search with Popup Results */}
           <div className="flex-1 max-w-2xl mx-8 relative" ref={searchRef}>
             <div className="relative flex items-center">
-              <Search className={`absolute left-5 w-5 h-5 z-10 ${
+              <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${
                 theme === 'day' ? 'text-indigo-400' : 'text-indigo-400'
               }`} />
               <input
@@ -179,7 +187,7 @@ export function DashboardLayout({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
-                className={`w-full pl-14 pr-6 py-3 rounded-[24px] ${
+                className={`w-full pl-12 pr-6 py-3 rounded-[24px] ${
                   theme === 'day'
                     ? 'bg-white/90 text-indigo-900 placeholder-indigo-400 border-2 border-indigo-300'
                     : 'bg-indigo-800/90 text-white placeholder-indigo-400 border-2 border-indigo-600'
@@ -327,13 +335,15 @@ export function DashboardLayout({
               whileTap={{ scale: 0.95 }}
             >
               <Bell className="w-4 h-4" />
-              <motion.span 
-                className="w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center"
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                3
-              </motion.span>
+              {unreadCount > 0 && (
+                <motion.span 
+                  className="w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  {unreadCount}
+                </motion.span>
+              )}
             </motion.button>
 
             <motion.button
@@ -382,15 +392,15 @@ export function DashboardLayout({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed left-0 top-20 bottom-0 w-72 ${sidebarBg} backdrop-blur-2xl border-r z-30 overflow-y-auto`}
-            style={{ boxShadow: '8px 0 32px rgba(0, 0, 0, 0.1)' }}
+            className={`fixed left-0 top-0 h-full w-64 ${sidebarBg} backdrop-blur-2xl border-r z-40 overflow-y-auto pt-24`}
+            style={{ boxShadow: '4px 0 24px rgba(99, 102, 241, 0.1)' }}
           >
-          <nav className="p-4 space-y-2">
+          <nav className="pt-2 px-4 pb-4 space-y-2">
             {menuItems.map((item) => (
               <motion.button
                 key={item.id}
                 onClick={() => navigate(item.id)}
-                className={`relative w-full flex items-center gap-3 px-5 py-3 rounded-full transition-all duration-300 ${
+                className={`relative w-full flex items-center gap-3 px-5 py-3 rounded-[16px] transition-all duration-300 ${
                   activePage === item.id
                     ? theme === 'day'
                       ? 'bg-white text-indigo-900 shadow-lg'
@@ -400,7 +410,7 @@ export function DashboardLayout({
                     : 'hover:bg-indigo-800/50 text-indigo-200'
                 }`}
                 style={{
-                  boxShadow: activePage === item.id ? '0 4px 16px rgba(0, 0, 0, 0.1)' : 'none',
+                  boxShadow: activePage === item.id ? '0 4px 16px rgba(99, 102, 241, 0.15)' : 'none',
                 }}
                 whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.98 }}
@@ -440,17 +450,15 @@ export function DashboardLayout({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className={`relative z-10 pt-24 transition-all duration-500 ease-out ${
-          sidebarOpen ? 'pl-72' : 'pl-0'
+        className={`relative z-10 pt-40 pb-6 transition-all duration-500 ease-out ${
+          sidebarOpen ? 'ml-64' : 'ml-0'
         }`}
       >
-        <div className="p-8">
-          {activePage !== 'student-dashboard' && activePage !== 'teacher-dashboard' && (
-            <Breadcrumbs
-              theme={theme}
-              items={getBreadcrumbs(activePage, user?.role, breadcrumbLabels)}
-            />
-          )}
+        <div className="p-6">
+          <Breadcrumbs
+            theme={theme}
+            items={getBreadcrumbs(activePage, user?.role, breadcrumbLabels)}
+          />
           {children}
         </div>
       </motion.main>

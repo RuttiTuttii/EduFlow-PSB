@@ -98,7 +98,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className={`${cardBg} backdrop-blur-2xl border rounded-[32px] p-8 relative overflow-hidden`}
+          className={`${cardBg} backdrop-blur-2xl border rounded-[40px] p-8 relative overflow-hidden`}
           style={{ boxShadow: '0 8px 40px rgba(99, 102, 241, 0.15)' }}
         >
           <GridPattern theme={theme} />
@@ -126,7 +126,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ scale: 1.03, y: -3 }}
-              className={`${cardBg} backdrop-blur-xl border rounded-3xl p-5 shadow-lg relative overflow-hidden`}
+              className={`${cardBg} backdrop-blur-xl border rounded-[32px] p-6 pb-8 shadow-lg relative overflow-hidden`}
               style={{
                 boxShadow: '0 4px 20px rgba(99, 102, 241, 0.12)',
               }}
@@ -179,8 +179,8 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 + 0.4 }}
                   whileHover={{ scale: 1.02, y: -5 }}
-                  onClick={() => navigate(`/course/${course.id}`)}
-                  className={`${cardBg} backdrop-blur-xl border rounded-3xl overflow-hidden shadow-lg cursor-pointer group`}
+                  onClick={() => navigate(`/course?id=${course.id}`)}
+                  className={`${cardBg} backdrop-blur-xl border rounded-[32px] overflow-hidden shadow-lg cursor-pointer group`}
                   style={{
                     boxShadow: '0 4px 20px rgba(99, 102, 241, 0.12)',
                   }}
@@ -196,7 +196,7 @@ export function StudentDashboard({ theme, user, onLogout, onToggleTheme }: Stude
                       {course.level}
                     </div>
                   </div>
-                  <div className="p-5">
+                  <div className="p-6 pb-8">
                     <h3 className={`text-lg mb-2 ${textClass}`}>{course.title}</h3>
                     <div className="flex items-center gap-2 mb-2 text-sm">
                       <span className={theme === 'day' ? 'text-indigo-600' : 'text-indigo-300'}>

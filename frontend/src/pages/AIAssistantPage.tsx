@@ -202,42 +202,54 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
         body: JSON.stringify({ content: currentMessage, useContext: true }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
+      let messageId: number | null = null;
+      let buffer = '';
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          // Process complete lines
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
+                if (data.error) {
+                  console.error('AI Error:', data.error);
+                  // Show error message to user
+                  const errorMessage: AIMessage = {
+                    id: Date.now() + 1,
+                    chat_id: chatId!,
+                    role: 'assistant',
+                    content: `⚠️ ${data.error}`,
+                    created_at: new Date().toISOString(),
+                  };
+                  setMessages(prev => [...prev, errorMessage]);
+                  setIsLoading(false);
+                  return;
+                }
                 if (data.content) {
                   fullContent += data.content;
                   setStreamingContent(fullContent);
                 }
-                if (data.done && data.messageId) {
-                  const aiMessage: AIMessage = {
-                    id: data.messageId,
-                    chat_id: chatId!,
-                    role: 'assistant',
-                    content: fullContent,
-                    created_at: new Date().toISOString(),
-                  };
-                  setMessages(prev => [...prev, aiMessage]);
-                  setStreamingContent('');
-                  
-                  setChats(prev => prev.map(c => 
-                    c.id === chatId 
-                      ? { ...c, last_message: fullContent.substring(0, 50), updated_at: new Date().toISOString() }
-                      : c
-                  ));
+                if (data.done) {
+                  if (data.messageId) {
+                    messageId = data.messageId;
+                  }
                 }
               } catch {
                 // Skip invalid JSON
@@ -245,6 +257,36 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
             }
           }
         }
+        
+        // Process any remaining buffer
+        if (buffer.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(buffer.slice(6));
+            if (data.content) fullContent += data.content;
+            if (data.messageId) messageId = data.messageId;
+          } catch {
+            // Skip
+          }
+        }
+      }
+
+      // Always add message if we have content
+      if (fullContent) {
+        const aiMessage: AIMessage = {
+          id: messageId || Date.now(),
+          chat_id: chatId!,
+          role: 'assistant',
+          content: fullContent,
+          created_at: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        setStreamingContent('');
+        
+        setChats(prev => prev.map(c => 
+          c.id === chatId 
+            ? { ...c, last_message: fullContent.substring(0, 50), updated_at: new Date().toISOString() }
+            : c
+        ));
       }
     } catch (error) {
       console.error('Stream error:', error);
@@ -568,9 +610,9 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
                         : theme === 'day'
                         ? 'bg-white/80 text-indigo-900 border border-indigo-200'
                         : 'bg-indigo-800/50 text-white border border-indigo-700'
-                    } rounded-[20px] px-5 py-3 shadow-lg`}>
+                    } rounded-[20px] px-6 py-4 shadow-lg`}>
                       {msg.role === 'assistant' && (
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <Sparkles className={`w-4 h-4 ${theme === 'day' ? 'text-indigo-500' : 'text-indigo-400'}`} />
                           <span className={`text-xs ${theme === 'day' ? 'text-indigo-500' : 'text-indigo-400'}`}>
                             AI Assistant
@@ -602,8 +644,8 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
                       theme === 'day'
                         ? 'bg-white/80 text-indigo-900 border border-indigo-200'
                         : 'bg-indigo-800/50 text-white border border-indigo-700'
-                    } rounded-[20px] px-5 py-3 shadow-lg`}>
-                      <div className="flex items-center gap-2 mb-2">
+                    } rounded-[20px] px-6 py-4 shadow-lg`}>
+                      <div className="flex items-center gap-2 mb-3">
                         <Sparkles className={`w-4 h-4 ${theme === 'day' ? 'text-indigo-500' : 'text-indigo-400'}`} />
                         <span className={`text-xs ${theme === 'day' ? 'text-indigo-500' : 'text-indigo-400'}`}>
                           AI Assistant
