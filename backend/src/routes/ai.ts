@@ -5,44 +5,54 @@ const router = Router();
 
 // ProxyAPI configuration for hackathon
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'sk-68J3E3GDfyBQotTdg9NEexCqc8OMqUST';
-const PROXY_BASE_URL = 'https://api.proxyapi.ru/google/v1beta';
-const MODEL = 'models/gemini-1.5-flash';
+// Use OpenAI-compatible endpoint from ProxyAPI (more reliable)
+const PROXY_BASE_URL = 'https://api.proxyapi.ru/openai/v1';
 
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
     };
   }>;
+  error?: {
+    message?: string;
+  };
 }
 
-// Helper function to call Gemini via ProxyAPI
+// Helper function to call AI via ProxyAPI (OpenAI-compatible)
 async function callGemini(prompt: string): Promise<string> {
-  const response = await fetch(`${PROXY_BASE_URL}/${MODEL}:generateContent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GEMINI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ]
-    }),
-  });
+  try {
+    const response = await fetch(`${PROXY_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Gemini API Error:', error);
-    throw new Error(`Gemini API error: ${response.status}`);
+    const data = await response.json() as ChatCompletionResponse;
+    
+    if (!response.ok) {
+      console.error('ProxyAPI Error:', JSON.stringify(data));
+      throw new Error(data.error?.message || `API error: ${response.status}`);
+    }
+
+    return data.choices?.[0]?.message?.content || 'Не удалось получить ответ от AI';
+  } catch (error) {
+    console.error('callGemini error:', error);
+    throw error;
   }
-
-  const data = await response.json() as GeminiResponse;
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 // Get AI assistance
