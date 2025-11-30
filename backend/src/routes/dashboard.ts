@@ -269,7 +269,7 @@ router.post('/calendar/events', authMiddleware, (req: Request, res: Response) =>
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const info = stmt.run(userId, title, description, event_date, event_time, type || 'event', course_id);
+    const info = stmt.run(userId, title, description ?? null, event_date, event_time ?? null, type || 'event', course_id ?? null);
 
     const event = db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(event);

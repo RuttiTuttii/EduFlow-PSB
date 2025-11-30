@@ -87,8 +87,8 @@ export function DashboardLayout({
   }, []);
 
   const sidebarBg = theme === 'day'
-    ? 'bg-white/70 border-white/50'
-    : 'bg-indigo-900/70 border-indigo-700/30';
+    ? 'bg-white/70 border-indigo-200/50'
+    : 'bg-indigo-900/70 border-indigo-700/50';
 
   const navBg = theme === 'day'
     ? 'bg-white/70 border-white/50'
@@ -176,11 +176,11 @@ export function DashboardLayout({
                 onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
                 className={`w-full pl-14 pr-6 py-3 rounded-[24px] ${
                   theme === 'day'
-                    ? 'bg-white/80 text-indigo-900 placeholder-indigo-400 border-2 border-indigo-200'
-                    : 'bg-indigo-800/80 text-white placeholder-indigo-400 border-2 border-indigo-700'
+                    ? 'bg-white/90 text-indigo-900 placeholder-indigo-400 border-2 border-indigo-300'
+                    : 'bg-indigo-800/90 text-white placeholder-indigo-400 border-2 border-indigo-600'
                 } backdrop-blur-sm focus:outline-none focus:border-indigo-500 transition-all text-sm`}
                 style={{
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                  boxShadow: '0 4px 20px rgba(99, 102, 241, 0.15)',
                 }}
               />
             </div>

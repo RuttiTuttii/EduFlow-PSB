@@ -49,8 +49,8 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
   const navigate = useNavigate();
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' 
-    ? 'bg-white/70 border-white/50' 
-    : 'bg-indigo-900/70 border-indigo-700/50';
+    ? 'bg-white/80 border-indigo-200/60' 
+    : 'bg-indigo-900/80 border-indigo-600/50';
 
   const [stats, setStats] = useState<Stats>({ totalStudents: 0, activeCourses: 0, pendingSubmissions: 0, gradedSubmissions: 0 });
   const [courses, setCourses] = useState<Course[]>([]);
@@ -92,7 +92,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ type: 'spring', stiffness: 120, damping: 20 }}
           className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-[32px] p-8 relative overflow-hidden`}
-          style={{ boxShadow: '0 8px 40px rgba(0, 0, 0, 0.12)' }}
+          style={{ boxShadow: '0 8px 40px rgba(99, 102, 241, 0.15)' }}
         >
           <GridPattern theme={theme} />
           <div className="relative z-10">
@@ -120,7 +120,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
               whileHover={{ scale: 1.03, y: -3 }}
               className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl p-5 relative overflow-hidden`}
               style={{
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)',
               }}
             >
               <GridPattern theme={theme} />
@@ -159,7 +159,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
               whileTap={{ scale: 0.98 }}
               className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl p-5 relative overflow-hidden text-left`}
               style={{
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)',
               }}
             >
               <GridPattern theme={theme} />
@@ -183,7 +183,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
               whileTap={{ scale: 0.98 }}
               className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl p-5 relative overflow-hidden text-left`}
               style={{
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)',
               }}
             >
               <GridPattern theme={theme} />
@@ -207,7 +207,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
               whileTap={{ scale: 0.98 }}
               className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl p-5 relative overflow-hidden text-left`}
               style={{
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)',
               }}
             >
               <GridPattern theme={theme} />
@@ -244,7 +244,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 120, damping: 20, delay: 0.55 }}
               className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl p-8 text-center`}
-              style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)' }}
+              style={{ boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)' }}
             >
               <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'day' ? 'text-indigo-300' : 'text-indigo-600'}`} />
               <h3 className={`text-xl mb-2 font-medium ${textClass}`}>Пока нет курсов</h3>
@@ -272,7 +272,7 @@ export function TeacherDashboard({ theme, user, onLogout, onToggleTheme }: Teach
                   onClick={() => navigate(`/edit-course/${course.id}`)}
                   className={`${cardBg} backdrop-blur-2xl backdrop-saturate-150 border rounded-3xl overflow-hidden cursor-pointer group`}
                   style={{
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                    boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)',
                   }}
                 >
                   <div className="relative h-40 overflow-hidden">

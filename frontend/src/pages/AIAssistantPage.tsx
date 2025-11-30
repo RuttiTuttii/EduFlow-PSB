@@ -69,11 +69,11 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
   
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' 
-    ? 'bg-white/70 border-white/50' 
-    : 'bg-indigo-900/70 border-indigo-700/30';
+    ? 'bg-white/80 border-indigo-200/60' 
+    : 'bg-indigo-900/80 border-indigo-600/50';
   const sidebarBg = theme === 'day'
-    ? 'bg-white/90 border-r border-indigo-100'
-    : 'bg-indigo-950/90 border-r border-indigo-800';
+    ? 'bg-white/90 border border-indigo-200/60'
+    : 'bg-indigo-950/90 border border-indigo-600/50';
 
   // Load chats on mount
   useEffect(() => {
@@ -658,9 +658,10 @@ export function AIAssistantPage({ theme, user, onLogout, onToggleTheme }: AIAssi
                 disabled={isLoading}
                 className={`flex-1 px-5 py-3 rounded-[16px] ${
                   theme === 'day'
-                    ? 'bg-white/80 border-indigo-200 text-indigo-900 placeholder-indigo-400'
-                    : 'bg-indigo-800/50 border-indigo-700 text-white placeholder-indigo-500'
+                    ? 'bg-white/90 border-indigo-300 text-indigo-900 placeholder-indigo-400'
+                    : 'bg-indigo-800/70 border-indigo-600 text-white placeholder-indigo-400'
                 } border-2 focus:outline-none focus:border-indigo-500 transition-all`}
+                style={{ boxShadow: '0 2px 12px rgba(99, 102, 241, 0.1)' }}
               />
               
               <motion.button

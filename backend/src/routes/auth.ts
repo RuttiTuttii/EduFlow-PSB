@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
-import { generateTokens, verifyRefreshToken } from '../auth.js';
+import { generateTokens, verifyRefreshToken, verifyAuthToken } from '../auth.js';
 import crypto from 'crypto';
 
 const router = Router();
@@ -222,8 +222,7 @@ router.get('/me', (req: Request, res: Response) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const { verifyAccessToken } = require('../auth.js');
-    const payload = verifyAccessToken(token);
+    const payload = verifyAuthToken(token);
 
     if (!payload) {
       return res.status(401).json({ error: 'Invalid token' });

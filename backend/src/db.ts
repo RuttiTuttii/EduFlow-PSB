@@ -50,8 +50,10 @@ class DbWrapper {
         // Flatten params if first arg is an array (handles both styles)
         const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
         self.sqlDb.run(sql, flatParams);
+        // Get last insert rowid IMMEDIATELY after the run, before saveDb
+        const lastId = self.getLastInsertRowId();
         saveDb();
-        return { changes: self.sqlDb.getRowsModified(), lastInsertRowid: self.getLastInsertRowId() };
+        return { changes: self.sqlDb.getRowsModified(), lastInsertRowid: lastId };
       },
       get(...params: any[]) {
         const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;

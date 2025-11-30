@@ -61,8 +61,8 @@ export function MessengerPage({ theme, user, onLogout, onToggleTheme }: Messenge
   
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' 
-    ? 'bg-white/70 border-white/50' 
-    : 'bg-indigo-900/70 border-indigo-700/30';
+    ? 'bg-white/80 border-indigo-200/60' 
+    : 'bg-indigo-900/80 border-indigo-600/50';
 
   // Load conversations on mount
   useEffect(() => {
@@ -217,6 +217,7 @@ export function MessengerPage({ theme, user, onLogout, onToggleTheme }: Messenge
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className={`w-80 ${cardBg} backdrop-blur-xl border rounded-[24px] flex flex-col`}
+          style={{ boxShadow: '0 8px 32px rgba(99, 102, 241, 0.12)' }}
         >
           {/* Header */}
           <div className="p-4 border-b border-inherit">
@@ -234,18 +235,19 @@ export function MessengerPage({ theme, user, onLogout, onToggleTheme }: Messenge
             
             <div className="relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                theme === 'day' ? 'text-indigo-400' : 'text-indigo-500'
+                theme === 'day' ? 'text-indigo-400' : 'text-indigo-400'
               }`} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск..."
-                className={`w-full pl-10 pr-4 py-2 rounded-[12px] text-sm ${
+                className={`w-full pl-10 pr-4 py-2.5 rounded-[12px] text-sm ${
                   theme === 'day'
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-900'
-                    : 'bg-indigo-800/50 border-indigo-700 text-white'
-                } border focus:outline-none focus:border-indigo-500`}
+                    ? 'bg-white/90 border-indigo-300 text-indigo-900'
+                    : 'bg-indigo-800/70 border-indigo-600 text-white'
+                } border-2 focus:outline-none focus:border-indigo-500`}
+                style={{ boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)' }}
               />
             </div>
           </div>
@@ -397,9 +399,10 @@ export function MessengerPage({ theme, user, onLogout, onToggleTheme }: Messenge
                     disabled={isSending}
                     className={`flex-1 px-4 py-3 rounded-[16px] ${
                       theme === 'day'
-                        ? 'bg-white/80 border-indigo-200 text-indigo-900'
-                        : 'bg-indigo-800/50 border-indigo-700 text-white'
-                    } border focus:outline-none focus:border-indigo-500`}
+                        ? 'bg-white/90 border-indigo-300 text-indigo-900'
+                        : 'bg-indigo-800/70 border-indigo-600 text-white'
+                    } border-2 focus:outline-none focus:border-indigo-500`}
+                    style={{ boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)' }}
                   />
                   <motion.button
                     onClick={sendMessage}

@@ -38,7 +38,7 @@ router.post(
       const stmt = db.prepare(
         'INSERT INTO assignments (course_id, lesson_id, title, description, due_date) VALUES (?, ?, ?, ?, ?)'
       );
-      const info = stmt.run(course_id, lesson_id, title, description, due_date);
+      const info = stmt.run(course_id, lesson_id ?? null, title, description ?? null, due_date ?? null);
 
       const assignment = db
         .prepare('SELECT * FROM assignments WHERE id = ?')
