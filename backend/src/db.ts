@@ -4,14 +4,26 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '../data');
+
+// Use different paths for development and production
+const dataDir = process.env.NODE_ENV === 'production' 
+  ? path.join(process.cwd(), 'backend/data')
+  : path.join(__dirname, '../data');
+
+console.log(`📂 Database directory: ${dataDir}`);
 
 // Ensure data directory exists
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    console.log(`✅ Created data directory: ${dataDir}`);
+  }
+} catch (err) {
+  console.error(`❌ Failed to create data directory: ${err}`);
 }
 
 const dbPath = path.join(dataDir, 'eduflow.db');
+console.log(`📂 Database path: ${dbPath}`);
 let db: SqlJsDatabase | null = null;
 
 // Helper to save database to file
@@ -92,16 +104,19 @@ class DbWrapper {
 let dbWrapper: DbWrapper | null = null;
 
 export async function initDb() {
-  const SQL = await initSqlJs();
-  
-  // Load existing database or create new one
-  let sqlDb: SqlJsDatabase;
-  if (fs.existsSync(dbPath)) {
-    const fileBuffer = fs.readFileSync(dbPath);
-    sqlDb = new SQL.Database(fileBuffer);
-  } else {
-    sqlDb = new SQL.Database();
-  }
+  try {
+    const SQL = await initSqlJs();
+    
+    // Load existing database or create new one
+    let sqlDb: SqlJsDatabase;
+    if (fs.existsSync(dbPath)) {
+      console.log(`📂 Loading existing database from: ${dbPath}`);
+      const fileBuffer = fs.readFileSync(dbPath);
+      sqlDb = new SQL.Database(fileBuffer);
+    } else {
+      console.log(`📂 Creating new database at: ${dbPath}`);
+      sqlDb = new SQL.Database();
+    }
   
   db = sqlDb;
   dbWrapper = new DbWrapper(sqlDb);

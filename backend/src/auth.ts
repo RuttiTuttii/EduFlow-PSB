@@ -1,6 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 
+// Fallback secrets for development/hackathon (MUST be changed in real production!)
+// Hackathon demo keys - DO NOT USE IN REAL PRODUCTION
+const JWT_SECRET = process.env.JWT_SECRET || 'f0cac1feef9a71f7a994cb2bb97aaaefd5d9f6ff10a3367456b018b03ddc0eab';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || '0a038d4f2703a6f2850f3fa966394a46364f4d02893b9fd72f160a657773cc1a';
+
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ ТОЛЬКО ДЛЯ ХАКАТОНА: Используется JWT_SECRET по умолчанию. Пожалуйста, установите собственный секрет в реальной среде!');
+}
+
 export interface JwtPayload {
   id: number;
   email: string;
@@ -21,11 +30,11 @@ export function generateTokens(payload: JwtPayload) {
   // Clean the payload to remove any existing exp/iat properties
   const { exp, iat, ...cleanPayload } = payload;
 
-  const authToken = jwt.sign(cleanPayload, process.env.JWT_SECRET!, {
+  const authToken = jwt.sign(cleanPayload, JWT_SECRET, {
     expiresIn: '10m',
   });
 
-  const refreshToken = jwt.sign(cleanPayload, process.env.JWT_REFRESH_SECRET!, {
+  const refreshToken = jwt.sign(cleanPayload, JWT_REFRESH_SECRET, {
     expiresIn: '2w',
   });
 
@@ -34,7 +43,7 @@ export function generateTokens(payload: JwtPayload) {
 
 export function verifyAuthToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    return jwt.verify(token, JWT_SECRET) as JwtPayload;
   } catch {
     return null;
   }
@@ -42,7 +51,7 @@ export function verifyAuthToken(token: string): JwtPayload | null {
 
 export function verifyRefreshToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as JwtPayload;
+    return jwt.verify(token, JWT_REFRESH_SECRET) as JwtPayload;
   } catch {
     return null;
   }

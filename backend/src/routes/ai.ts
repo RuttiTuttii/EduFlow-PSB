@@ -4,11 +4,18 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = Router();
 
-const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// ProxyAPI configuration for hackathon
+// Using custom baseUrl for ProxyAPI.ru
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'sk-68J3E3GDfyBQotTdg9NEexCqc8OMqUST';
+const PROXY_BASE_URL = 'https://api.proxyapi.ru/google';
 
-const model = client.getGenerativeModel({
-  model: 'gemini-2.0-flash',
-});
+const client = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// Use gemini-1.5-flash for lower cost, with ProxyAPI baseUrl
+const model = client.getGenerativeModel(
+  { model: 'gemini-1.5-flash' },
+  { baseUrl: PROXY_BASE_URL }
+);
 
 // Get AI assistance
 router.post('/help', authMiddleware, async (req: Request, res: Response) => {
@@ -16,16 +23,16 @@ router.post('/help', authMiddleware, async (req: Request, res: Response) => {
     const { topic, question, context } = req.body;
 
     if (!question) {
-      return res.status(400).json({ error: 'Missing question' });
+      return res.status(400).json({ error: 'Вопрос не указан' });
     }
 
-    const prompt = `You are an educational assistant helping a student.
-Topic: ${topic || 'General'}
-Context: ${context || 'No additional context'}
+    const prompt = `Ты — образовательный помощник, который помогает студентам.
+Тема: ${topic || 'Общая'}
+Контекст: ${context || 'Дополнительный контекст отсутствует'}
 
-Student question: ${question}
+Вопрос студента: ${question}
 
-Please provide a clear, educational response that helps the student understand the concept. Keep it concise and helpful.`;
+Пожалуйста, дай понятный, образовательный ответ, который поможет студенту понять концепцию. Отвечай кратко и по делу. Отвечай на русском языке.`;
 
     const response = await model.generateContent(prompt);
     const text = response.response.text();
@@ -36,8 +43,8 @@ Please provide a clear, educational response that helps the student understand t
       question,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to get AI assistance' });
+    console.error('AI Help Error:', error);
+    res.status(500).json({ error: 'Не удалось получить помощь от AI' });
   }
 });
 
@@ -50,22 +57,22 @@ router.post(
       const { submission, rubric } = req.body;
 
       if (!submission) {
-        return res.status(400).json({ error: 'Missing submission' });
+        return res.status(400).json({ error: 'Работа не указана' });
       }
 
-      const prompt = `You are an educational evaluator analyzing a student submission.
-Rubric: ${rubric || 'General academic standards'}
+      const prompt = `Ты — образовательный эксперт, анализирующий работу студента.
+Критерии оценки: ${rubric || 'Общие академические стандарты'}
 
-Submission to analyze:
+Работа для анализа:
 ${submission}
 
-Please provide:
-1. Strengths of the submission
-2. Areas for improvement
-3. Specific suggestions for enhancement
-4. Overall assessment
+Пожалуйста, укажи:
+1. Сильные стороны работы
+2. Области для улучшения
+3. Конкретные предложения по доработке
+4. Общая оценка
 
-Be constructive and encouraging.`;
+Будь конструктивным и ободряющим. Отвечай на русском языке.`;
 
       const response = await model.generateContent(prompt);
       const text = response.response.text();
@@ -74,8 +81,8 @@ Be constructive and encouraging.`;
         analysis: text,
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to analyze submission' });
+      console.error('AI Analysis Error:', error);
+      res.status(500).json({ error: 'Не удалось проанализировать работу' });
     }
   }
 );
@@ -89,20 +96,22 @@ router.post(
       const { topic, count = 5, difficulty = 'medium' } = req.body;
 
       if (!topic) {
-        return res.status(400).json({ error: 'Missing topic' });
+        return res.status(400).json({ error: 'Тема не указана' });
       }
 
-      const prompt = `Generate ${count} multiple choice questions about "${topic}" at ${difficulty} difficulty level.
+      const difficultyRu = difficulty === 'easy' ? 'лёгкой' : difficulty === 'hard' ? 'сложной' : 'средней';
 
-Format each question as JSON:
+      const prompt = `Сгенерируй ${count} вопросов с вариантами ответов по теме "${topic}" ${difficultyRu} сложности.
+
+Формат каждого вопроса в JSON:
 {
-  "question": "question text",
-  "options": ["option1", "option2", "option3", "option4"],
+  "question": "текст вопроса на русском",
+  "options": ["вариант1", "вариант2", "вариант3", "вариант4"],
   "correctAnswer": 0,
-  "explanation": "why this is correct"
+  "explanation": "почему это правильный ответ"
 }
 
-Return only a JSON array.`;
+Верни только JSON массив. Все тексты должны быть на русском языке.`;
 
       const response = await model.generateContent(prompt);
       const text = response.response.text();
@@ -117,8 +126,8 @@ Return only a JSON array.`;
         difficulty,
       });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to generate questions' });
+      console.error('AI Questions Error:', error);
+      res.status(500).json({ error: 'Не удалось сгенерировать вопросы' });
     }
   }
 );
@@ -129,18 +138,20 @@ router.post('/explain', authMiddleware, async (req: Request, res: Response) => {
     const { concept, level = 'intermediate' } = req.body;
 
     if (!concept) {
-      return res.status(400).json({ error: 'Missing concept' });
+      return res.status(400).json({ error: 'Концепция не указана' });
     }
 
-    const prompt = `Explain the concept of "${concept}" at a ${level} level.
+    const levelRu = level === 'beginner' ? 'начальном' : level === 'advanced' ? 'продвинутом' : 'среднем';
 
-Include:
-1. Simple definition
-2. Key points
-3. Real-world example
-4. Common misconceptions to avoid
+    const prompt = `Объясни концепцию "${concept}" на ${levelRu} уровне.
 
-Keep the explanation clear and engaging.`;
+Включи:
+1. Простое определение
+2. Ключевые моменты
+3. Пример из реальной жизни
+4. Распространённые заблуждения, которых стоит избегать
+
+Объяснение должно быть понятным и увлекательным. Отвечай на русском языке.`;
 
     const response = await model.generateContent(prompt);
     const text = response.response.text();
@@ -151,8 +162,8 @@ Keep the explanation clear and engaging.`;
       level,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to explain concept' });
+    console.error('AI Explain Error:', error);
+    res.status(500).json({ error: 'Не удалось объяснить концепцию' });
   }
 });
 

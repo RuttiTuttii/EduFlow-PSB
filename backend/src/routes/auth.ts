@@ -22,10 +22,19 @@ router.post('/register', async (req: Request, res: Response) => {
       );
       const info = stmt.run(email, hashedPassword, name, role);
       const userId = info.lastInsertRowid;
+      
+      console.log(`✅ User created with ID: ${userId}`);
 
       const user = db.prepare(
         'SELECT id, email, name, role FROM users WHERE id = ?'
       ).get(userId);
+
+      if (!user) {
+        console.error('❌ User not found after insert, userId:', userId);
+        return res.status(500).json({ error: 'Failed to create user' });
+      }
+      
+      console.log('✅ User fetched:', user);
 
       const tokens = generateTokens({
         id: (user as any).id,

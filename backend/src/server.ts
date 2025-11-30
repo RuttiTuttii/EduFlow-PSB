@@ -56,33 +56,56 @@ app.get('/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   // Try multiple possible paths for frontend build
   const possiblePaths = [
+    path.join(process.cwd(), 'frontend/build'),        // From project root (Railway)
     path.join(__dirname, '../../frontend/build'),      // Local Docker
-    path.join(__dirname, '../../../frontend/build'),   // Railway/Heroku
-    path.join(process.cwd(), 'frontend/build'),        // From project root
+    path.join(__dirname, '../../../frontend/build'),   // Alternative
+    '/app/frontend/build',                              // Absolute path
   ];
   
-  let frontendPath = possiblePaths[0];
+  let frontendPath = '';
+  const fs = await import('fs');
+  
   for (const p of possiblePaths) {
-    try {
-      const fs = await import('fs');
-      if (fs.existsSync(path.join(p, 'index.html'))) {
-        frontendPath = p;
-        break;
-      }
-    } catch {
-      continue;
+    const indexPath = path.join(p, 'index.html');
+    console.log(`🔍 Checking path: ${indexPath}`);
+    if (fs.existsSync(indexPath)) {
+      frontendPath = p;
+      console.log(`✅ Found frontend at: ${frontendPath}`);
+      break;
     }
   }
   
-  console.log(`📁 Serving frontend from: ${frontendPath}`);
-  app.use(express.static(frontendPath));
-  
-  // Handle SPA routing - serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
+  if (frontendPath) {
+    console.log(`📁 Serving frontend from: ${frontendPath}`);
+    app.use(express.static(frontendPath));
+    
+    // Handle SPA routing - serve index.html for all non-API routes
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+        return next();
+      }
       res.sendFile(path.join(frontendPath, 'index.html'));
-    }
-  });
+    });
+  } else {
+    console.error('❌ Frontend build not found! Checked paths:', possiblePaths);
+    // Fallback - show error page
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+        return next();
+      }
+      res.status(503).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>EduFlow - Starting</title></head>
+          <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1>🚀 EduFlow</h1>
+            <p>Backend is running, but frontend build was not found.</p>
+            <p>API is available at <a href="/health">/health</a></p>
+          </body>
+        </html>
+      `);
+    });
+  }
 }
 
 // Error handling
@@ -91,6 +114,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// Listen on 0.0.0.0 to accept connections from outside the container
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(Number(PORT), HOST, () => {
+  console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
 });
