@@ -1,8 +1,16 @@
 import { motion } from 'motion/react';
-import { Bot, Send, Sparkles, Lightbulb, BookOpen, MessageCircle } from 'lucide-react';
+import { Bot, Send, Sparkles, Lightbulb, BookOpen, MessageCircle, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { api } from '../api/client';
 import type { User } from '../App';
+
+interface Message {
+  id: number;
+  sender: 'user' | 'ai';
+  text: string;
+  time: string;
+}
 
 interface AIAssistantPageProps {
   theme: 'day' | 'night';
@@ -13,62 +21,79 @@ interface AIAssistantPageProps {
 }
 
 const suggestions = [
-  { icon: Lightbulb, text: 'Объясни концепцию маркетинга простыми словами', color: 'from-yellow-500 to-orange-500' },
-  { icon: BookOpen, text: 'Помоги с домашним заданием', color: 'from-blue-500 to-cyan-500' },
-  { icon: MessageCircle, text: 'Как подготовиться к экзамену?', color: 'from-purple-500 to-pink-500' },
-];
-
-const messages = [
-  { 
-    id: 1, 
-    sender: 'ai', 
-    text: 'Здравствуйте! Я ваш AI-помощник в обучении. Чем могу помочь сегодня? 🤖', 
-    time: '14:30' 
-  },
-  { 
-    id: 2, 
-    sender: 'user', 
-    text: 'Расскажи про основные принципы UX-дизайна', 
-    time: '14:31' 
-  },
-  { 
-    id: 3, 
-    sender: 'ai', 
-    text: 'Конечно! Основные принципы UX-дизайна включают:\n\n1. **Понятность** - интерфейс должен быть интуитивно понятным\n2. **Эффективность** - пользователь должен быстро достигать целей\n3. **Привлекательность** - визуально приятный дизайн\n4. **Доступность** - удобство для всех категорий пользователей\n\nХотите узнать больше о каком-то конкретном принципе?', 
-    time: '14:32' 
-  },
+  { icon: Lightbulb, text: 'Помоги разобраться с концепцией ООП', color: 'from-yellow-500 to-orange-500' },
+  { icon: BookOpen, text: 'Как лучше подготовиться к экзамену?', color: 'from-blue-500 to-cyan-500' },
+  { icon: MessageCircle, text: 'Объясни что такое REST API простыми словами', color: 'from-purple-500 to-pink-500' },
 ];
 
 export function AIAssistantPage({ theme, user, onNavigate, onLogout, onToggleTheme }: AIAssistantPageProps) {
   const [message, setMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState(messages);
+  const [chatMessages, setChatMessages] = useState<Message[]>([
+    {
+      id: 1,
+      sender: 'ai',
+      text: 'Привет! 👋 Я AI-помощник EduFlow. Я помогу тебе разобраться в учебном материале, но не буду давать готовых ответов на тесты и экзамены — моя задача научить тебя думать самостоятельно! 🎓\n\nЧем могу помочь?',
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const textClass = theme === 'day' ? 'text-indigo-900' : 'text-white';
   const cardBg = theme === 'day' ? 'bg-white/95' : 'bg-indigo-900/95';
 
-  const handleSend = () => {
-    if (!message.trim()) return;
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleSend = async () => {
+    if (!message.trim() || isLoading) return;
     
-    const newMessage = {
-      id: chatMessages.length + 1,
-      sender: 'user' as const,
+    const userMessage: Message = {
+      id: Date.now(),
+      sender: 'user',
       text: message,
       time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
     };
     
-    setChatMessages([...chatMessages, newMessage]);
+    setChatMessages(prev => [...prev, userMessage]);
+    const currentMessage = message;
     setMessage('');
+    setIsLoading(true);
     
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        id: chatMessages.length + 2,
-        sender: 'ai' as const,
-        text: 'Отличный вопрос! Дайте мне минуту, чтобы подготовить подробный ответ...',
+    try {
+      // Build context from conversation history
+      const conversationContext = chatMessages
+        .slice(-6) // Last 6 messages for context
+        .map(m => `${m.sender === 'user' ? 'Студент' : 'AI'}: ${m.text}`)
+        .join('\n');
+
+      const response = await api.ai.help({
+        question: currentMessage,
+        topic: 'Общая помощь',
+        context: conversationContext,
+      });
+      
+      const aiResponse: Message = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: response.response || 'Извините, не удалось получить ответ. Попробуйте ещё раз.',
         time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
       };
       setChatMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      console.error('AI Error:', error);
+      const errorResponse: Message = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: '😔 Упс, что-то пошло не так. Попробуй переформулировать вопрос или повторить позже.',
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatMessages(prev => [...prev, errorResponse]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -185,6 +210,30 @@ export function AIAssistantPage({ theme, user, onNavigate, onLogout, onToggleThe
                 )}
               </motion.div>
             ))}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start gap-4"
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-6 h-6 text-white" />
+                </div>
+                <div className={`max-w-[75%] ${
+                  theme === 'day'
+                    ? 'bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-900 border-2 border-indigo-200'
+                    : 'bg-gradient-to-br from-indigo-900/50 to-purple-900/50 text-white border-2 border-indigo-700'
+                } rounded-[24px] px-6 py-4 shadow-lg`}>
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                    <span className={theme === 'day' ? 'text-indigo-600' : 'text-indigo-300'}>
+                      Думаю над ответом...
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
         </motion.div>
 
@@ -210,12 +259,17 @@ export function AIAssistantPage({ theme, user, onNavigate, onLogout, onToggleThe
             
             <motion.button
               onClick={handleSend}
-              whileHover={{ scale: 1.05, boxShadow: '0 20px 60px rgba(99, 102, 241, 0.5)' }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-[24px] flex items-center gap-3 shadow-xl"
+              disabled={isLoading || !message.trim()}
+              whileHover={{ scale: isLoading ? 1 : 1.05, boxShadow: '0 20px 60px rgba(99, 102, 241, 0.5)' }}
+              whileTap={{ scale: isLoading ? 1 : 0.95 }}
+              className={`px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-[24px] flex items-center gap-3 shadow-xl ${isLoading || !message.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Send className="w-6 h-6" />
-              <span className="text-lg">Отправить</span>
+              {isLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <Send className="w-6 h-6" />
+              )}
+              <span className="text-lg">{isLoading ? 'Отправка...' : 'Отправить'}</span>
             </motion.button>
           </div>
         </motion.div>

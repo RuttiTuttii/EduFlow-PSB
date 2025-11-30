@@ -255,3 +255,20 @@ export const dashboardApi = {
       body: JSON.stringify({ hours_spent, lessons_completed, assignments_completed, exams_taken }),
     }),
 };
+
+// Unified API export
+export const api = {
+  auth: authApi,
+  courses: coursesApi,
+  assignments: assignmentsApi,
+  exams: examsApi,
+  messages: messagesApi,
+  ai: {
+    help: (params: { question: string; topic?: string; context?: string }) =>
+      aiApi.getHelp(params.question, params.topic, params.context),
+    analyze: aiApi.analyzeSubmission,
+    questions: aiApi.generateQuestions,
+    explain: aiApi.explainConcept,
+  },
+  dashboard: dashboardApi,
+};

@@ -1,21 +1,49 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = Router();
 
 // ProxyAPI configuration for hackathon
-// Using custom baseUrl for ProxyAPI.ru
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'sk-68J3E3GDfyBQotTdg9NEexCqc8OMqUST';
-const PROXY_BASE_URL = 'https://api.proxyapi.ru/google';
+const PROXY_BASE_URL = 'https://api.proxyapi.ru/google/v1beta';
+const MODEL = 'models/gemini-1.5-flash';
 
-const client = new GoogleGenerativeAI(GEMINI_API_KEY);
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
 
-// Use gemini-1.5-flash for lower cost, with ProxyAPI baseUrl
-const model = client.getGenerativeModel(
-  { model: 'gemini-1.5-flash' },
-  { baseUrl: PROXY_BASE_URL }
-);
+// Helper function to call Gemini via ProxyAPI
+async function callGemini(prompt: string): Promise<string> {
+  const response = await fetch(`${PROXY_BASE_URL}/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GEMINI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }]
+        }
+      ]
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Gemini API Error:', error);
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json() as GeminiResponse;
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 // Get AI assistance
 router.post('/help', authMiddleware, async (req: Request, res: Response) => {
@@ -26,16 +54,23 @@ router.post('/help', authMiddleware, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Вопрос не указан' });
     }
 
-    const prompt = `Ты — образовательный помощник, который помогает студентам.
+    const prompt = `Ты — образовательный помощник EduFlow, который помогает студентам РАЗОБРАТЬСЯ в материале самостоятельно.
+
+ВАЖНЫЕ ПРАВИЛА:
+1. НИКОГДА не давай прямых ответов на задания, тесты или экзаменационные вопросы
+2. Вместо ответа — задавай наводящие вопросы
+3. Объясняй концепции и принципы, но не решай задачи за студента
+4. Если студент просит готовый ответ — вежливо откажи и предложи разобраться вместе
+5. Поощряй самостоятельное мышление
+
 Тема: ${topic || 'Общая'}
-Контекст: ${context || 'Дополнительный контекст отсутствует'}
+Контекст курса: ${context || 'Дополнительный контекст отсутствует'}
 
 Вопрос студента: ${question}
 
-Пожалуйста, дай понятный, образовательный ответ, который поможет студенту понять концепцию. Отвечай кратко и по делу. Отвечай на русском языке.`;
+Помоги студенту ПОНЯТЬ материал, но НЕ ДАВАЙ готовый ответ. Задай наводящие вопросы, объясни принципы, направь к правильному ходу мыслей. Отвечай на русском языке.`;
 
-    const response = await model.generateContent(prompt);
-    const text = response.response.text();
+    const text = await callGemini(prompt);
 
     res.json({
       response: text,
@@ -48,34 +83,34 @@ router.post('/help', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// Analyze assignment
+// Analyze assignment (for teachers only - provides feedback, not answers)
 router.post(
   '/analyze-submission',
   authMiddleware,
   async (req: Request, res: Response) => {
     try {
-      const { submission, rubric } = req.body;
+      const { submission, rubric, assignmentTitle } = req.body;
 
       if (!submission) {
         return res.status(400).json({ error: 'Работа не указана' });
       }
 
-      const prompt = `Ты — образовательный эксперт, анализирующий работу студента.
+      const prompt = `Ты — образовательный эксперт, помогающий преподавателю проверить работу студента.
+Задание: ${assignmentTitle || 'Не указано'}
 Критерии оценки: ${rubric || 'Общие академические стандарты'}
 
-Работа для анализа:
+Работа студента:
 ${submission}
 
-Пожалуйста, укажи:
-1. Сильные стороны работы
-2. Области для улучшения
-3. Конкретные предложения по доработке
-4. Общая оценка
+Дай развёрнутый анализ:
+1. ✅ Сильные стороны работы
+2. ⚠️ Области для улучшения  
+3. 💡 Конкретные рекомендации для студента
+4. 📊 Предварительная оценка (по шкале от 1 до 10)
 
-Будь конструктивным и ободряющим. Отвечай на русском языке.`;
+Будь конструктивным и ободряющим. Цель — помочь студенту расти. Отвечай на русском языке.`;
 
-      const response = await model.generateContent(prompt);
-      const text = response.response.text();
+      const text = await callGemini(prompt);
 
       res.json({
         analysis: text,
@@ -113,8 +148,7 @@ router.post(
 
 Верни только JSON массив. Все тексты должны быть на русском языке.`;
 
-      const response = await model.generateContent(prompt);
-      const text = response.response.text();
+      const text = await callGemini(prompt);
 
       // Parse the response
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -132,10 +166,10 @@ router.post(
   }
 );
 
-// Explain concept
+// Explain concept (educational, helps understand but doesn't give test answers)
 router.post('/explain', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { concept, level = 'intermediate' } = req.body;
+    const { concept, level = 'intermediate', courseContext } = req.body;
 
     if (!concept) {
       return res.status(400).json({ error: 'Концепция не указана' });
@@ -143,18 +177,22 @@ router.post('/explain', authMiddleware, async (req: Request, res: Response) => {
 
     const levelRu = level === 'beginner' ? 'начальном' : level === 'advanced' ? 'продвинутом' : 'среднем';
 
-    const prompt = `Объясни концепцию "${concept}" на ${levelRu} уровне.
+    const prompt = `Ты — образовательный помощник EduFlow. Объясни концепцию "${concept}" на ${levelRu} уровне.
 
-Включи:
-1. Простое определение
-2. Ключевые моменты
-3. Пример из реальной жизни
-4. Распространённые заблуждения, которых стоит избегать
+${courseContext ? `Контекст курса: ${courseContext}` : ''}
 
-Объяснение должно быть понятным и увлекательным. Отвечай на русском языке.`;
+ВАЖНО: Ты должен НАУЧИТЬ понимать, а не дать готовый ответ.
 
-    const response = await model.generateContent(prompt);
-    const text = response.response.text();
+Структура объяснения:
+1. 📖 Простое определение своими словами
+2. 🔑 Ключевые моменты (3-4 пункта)
+3. 🌍 Пример из реальной жизни
+4. ❓ Вопрос для самопроверки (чтобы студент мог проверить, понял ли он)
+5. ⚠️ Частые ошибки и заблуждения
+
+Объяснение должно быть понятным и увлекательным. НЕ давай готовых ответов на экзаменационные вопросы. Отвечай на русском языке.`;
+
+    const text = await callGemini(prompt);
 
     res.json({
       explanation: text,

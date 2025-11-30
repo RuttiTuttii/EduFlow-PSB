@@ -322,11 +322,398 @@ export async function initDb() {
     insertAchievement.run(ach.type, ach.title, ach.description, ach.icon, ach.color, ach.requirement_type, ach.requirement_value);
   }
   
+  // Seed demo data for hackathon
+  await seedDemoData();
+  
   console.log('Database initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize database:', error);
     throw error;
   }
+}
+
+// Seed demo users, course, lessons, tests, and exam
+async function seedDemoData() {
+  const bcrypt = await import('bcryptjs');
+  
+  // Check if demo data already exists
+  const existingTeacher = dbWrapper!.prepare('SELECT id FROM users WHERE email = ?').get('admin@teacher');
+  if (existingTeacher) {
+    console.log('📦 Demo data already exists, skipping seed...');
+    return;
+  }
+  
+  console.log('📦 Seeding demo data...');
+  
+  // Create demo teacher
+  const teacherPassword = await bcrypt.hash('admin@teacher', 10);
+  const teacherResult = dbWrapper!.prepare(
+    'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)'
+  ).run('admin@teacher', teacherPassword, 'Иван Преподавателев', 'teacher');
+  const teacherId = teacherResult.lastInsertRowid;
+  
+  // Create demo student
+  const studentPassword = await bcrypt.hash('admin@student', 10);
+  const studentResult = dbWrapper!.prepare(
+    'INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)'
+  ).run('admin@student', studentPassword, 'Алексей Студентов', 'student');
+  const studentId = studentResult.lastInsertRowid;
+  
+  // Create demo course: "Основы программирования на Python"
+  const courseResult = dbWrapper!.prepare(
+    'INSERT INTO courses (teacher_id, title, description, thumbnail, level) VALUES (?, ?, ?, ?, ?)'
+  ).run(
+    teacherId,
+    'Основы программирования на Python',
+    'Полный курс по основам Python для начинающих. Вы изучите переменные, типы данных, условия, циклы, функции и многое другое. Курс включает практические задания и итоговый экзамен.',
+    'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800',
+    'beginner'
+  );
+  const courseId = courseResult.lastInsertRowid;
+  
+  // Enroll student in the course
+  dbWrapper!.prepare(
+    'INSERT INTO enrollments (student_id, course_id, progress) VALUES (?, ?, ?)'
+  ).run(studentId, courseId, 25);
+  
+  // Create lessons
+  const lessons = [
+    {
+      title: 'Введение в Python',
+      content: `# Введение в Python
+
+## Что такое Python?
+
+Python — это высокоуровневый язык программирования с динамической типизацией и автоматическим управлением памятью.
+
+### Преимущества Python:
+- **Простой синтаксис** — код легко читать и писать
+- **Большое сообщество** — много библиотек и документации
+- **Универсальность** — веб, ML, автоматизация, анализ данных
+
+### Первая программа
+
+\`\`\`python
+print("Привет, мир!")
+\`\`\`
+
+### Установка Python
+1. Скачайте Python с python.org
+2. Установите, отметив "Add to PATH"
+3. Проверьте: \`python --version\`
+
+## Задание для самопроверки
+Попробуйте запустить свою первую программу и вывести своё имя!`,
+      order_num: 1
+    },
+    {
+      title: 'Переменные и типы данных',
+      content: `# Переменные и типы данных
+
+## Что такое переменная?
+
+Переменная — это именованная область памяти для хранения данных.
+
+### Создание переменных
+
+\`\`\`python
+name = "Алексей"      # строка (str)
+age = 20              # целое число (int)
+height = 1.75         # дробное число (float)
+is_student = True     # логический тип (bool)
+\`\`\`
+
+### Основные типы данных
+
+| Тип | Описание | Пример |
+|-----|----------|--------|
+| str | Строка | "Привет" |
+| int | Целое число | 42 |
+| float | Дробное число | 3.14 |
+| bool | True/False | True |
+| list | Список | [1, 2, 3] |
+| dict | Словарь | {"name": "Alex"} |
+
+### Проверка типа
+
+\`\`\`python
+x = 10
+print(type(x))  # <class 'int'>
+\`\`\`
+
+## Подумайте сами
+Какой тип данных подойдёт для хранения среднего балла студента?`,
+      order_num: 2
+    },
+    {
+      title: 'Условные операторы',
+      content: `# Условные операторы
+
+## Конструкция if-elif-else
+
+Позволяет выполнять код в зависимости от условия.
+
+### Синтаксис
+
+\`\`\`python
+age = 18
+
+if age < 18:
+    print("Несовершеннолетний")
+elif age == 18:
+    print("Только исполнилось 18!")
+else:
+    print("Совершеннолетний")
+\`\`\`
+
+### Операторы сравнения
+
+- \`==\` — равно
+- \`!=\` — не равно
+- \`<\`, \`>\` — меньше, больше
+- \`<=\`, \`>=\` — меньше/больше или равно
+
+### Логические операторы
+
+\`\`\`python
+x = 10
+if x > 5 and x < 15:
+    print("x между 5 и 15")
+
+if x < 5 or x > 15:
+    print("x вне диапазона")
+\`\`\`
+
+## Практическое задание
+Напишите программу, которая по возрасту определяет категорию: ребёнок (до 12), подросток (12-17), взрослый (18+).`,
+      order_num: 3
+    },
+    {
+      title: 'Циклы',
+      content: `# Циклы в Python
+
+## Цикл for
+
+Используется для перебора элементов последовательности.
+
+\`\`\`python
+# Перебор списка
+fruits = ["яблоко", "банан", "апельсин"]
+for fruit in fruits:
+    print(fruit)
+
+# Перебор чисел
+for i in range(5):
+    print(i)  # 0, 1, 2, 3, 4
+\`\`\`
+
+## Цикл while
+
+Выполняется пока условие истинно.
+
+\`\`\`python
+count = 0
+while count < 5:
+    print(count)
+    count += 1
+\`\`\`
+
+### break и continue
+
+\`\`\`python
+for i in range(10):
+    if i == 3:
+        continue  # пропустить 3
+    if i == 7:
+        break     # остановиться на 7
+    print(i)
+\`\`\`
+
+## Задание
+Напишите программу, которая выводит таблицу умножения на 7.`,
+      order_num: 4
+    },
+    {
+      title: 'Функции',
+      content: `# Функции в Python
+
+## Что такое функция?
+
+Функция — это именованный блок кода, который можно вызывать многократно.
+
+### Создание функции
+
+\`\`\`python
+def greet(name):
+    """Функция приветствия"""
+    return f"Привет, {name}!"
+
+# Вызов функции
+message = greet("Алексей")
+print(message)  # Привет, Алексей!
+\`\`\`
+
+### Параметры по умолчанию
+
+\`\`\`python
+def power(base, exponent=2):
+    return base ** exponent
+
+print(power(3))     # 9 (3^2)
+print(power(3, 3))  # 27 (3^3)
+\`\`\`
+
+### Возврат нескольких значений
+
+\`\`\`python
+def min_max(numbers):
+    return min(numbers), max(numbers)
+
+minimum, maximum = min_max([1, 5, 3, 9, 2])
+\`\`\`
+
+## Практика
+Создайте функцию, которая принимает список чисел и возвращает их сумму и среднее значение.`,
+      order_num: 5
+    }
+  ];
+  
+  for (const lesson of lessons) {
+    dbWrapper!.prepare(
+      'INSERT INTO lessons (course_id, title, content, order_num) VALUES (?, ?, ?, ?)'
+    ).run(courseId, lesson.title, lesson.content, lesson.order_num);
+  }
+  
+  // Create assignments (tests)
+  const assignments = [
+    {
+      title: 'Тест: Переменные и типы данных',
+      description: 'Проверьте свои знания о переменных и типах данных в Python. Тест включает 5 вопросов.',
+      due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      max_score: 100
+    },
+    {
+      title: 'Практика: Условные операторы',
+      description: 'Напишите программу для определения високосного года. Год високосный, если делится на 4, но не на 100, или делится на 400.',
+      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      max_score: 100
+    }
+  ];
+  
+  for (const assignment of assignments) {
+    dbWrapper!.prepare(
+      'INSERT INTO assignments (course_id, title, description, due_date, max_score) VALUES (?, ?, ?, ?, ?)'
+    ).run(courseId, assignment.title, assignment.description, assignment.due_date, assignment.max_score);
+  }
+  
+  // Create exam
+  dbWrapper!.prepare(
+    'INSERT INTO exams (course_id, title, description, duration_minutes, passing_score, questions) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(
+    courseId,
+    'Итоговый экзамен: Основы Python',
+    'Итоговый экзамен по курсу. Включает вопросы по всем темам: переменные, типы данных, условия, циклы и функции.',
+    45,
+    70,
+    JSON.stringify([
+      {
+        question: 'Какой тип данных используется для хранения текста в Python?',
+        options: ['int', 'str', 'bool', 'float'],
+        correctAnswer: 1,
+        explanation: 'str (string) — это тип данных для хранения текстовых строк в Python.'
+      },
+      {
+        question: 'Что выведет код: print(type(3.14))?',
+        options: ["<class 'int'>", "<class 'str'>", "<class 'float'>", "<class 'double'>"],
+        correctAnswer: 2,
+        explanation: '3.14 — это число с плавающей точкой, поэтому его тип float.'
+      },
+      {
+        question: 'Какой оператор используется для проверки равенства в Python?',
+        options: ['=', '==', '===', ':='],
+        correctAnswer: 1,
+        explanation: '== используется для сравнения значений. = используется для присваивания.'
+      },
+      {
+        question: 'Что делает функция range(5)?',
+        options: [
+          'Создаёт список [1, 2, 3, 4, 5]',
+          'Создаёт последовательность 0, 1, 2, 3, 4',
+          'Создаёт число 5',
+          'Вызывает ошибку'
+        ],
+        correctAnswer: 1,
+        explanation: 'range(5) создаёт последовательность чисел от 0 до 4 (5 не включается).'
+      },
+      {
+        question: 'Как правильно определить функцию в Python?',
+        options: [
+          'function greet():',
+          'def greet():',
+          'func greet():',
+          'define greet():'
+        ],
+        correctAnswer: 1,
+        explanation: 'В Python функции определяются с помощью ключевого слова def.'
+      },
+      {
+        question: 'Какой цикл гарантированно выполнится хотя бы один раз?',
+        options: ['for', 'while', 'do-while', 'В Python нет такого цикла'],
+        correctAnswer: 3,
+        explanation: 'В Python нет цикла do-while. Циклы for и while могут не выполниться ни разу, если условие ложно.'
+      },
+      {
+        question: 'Что делает оператор break в цикле?',
+        options: [
+          'Пропускает текущую итерацию',
+          'Полностью прекращает цикл',
+          'Перезапускает цикл',
+          'Вызывает ошибку'
+        ],
+        correctAnswer: 1,
+        explanation: 'break немедленно прекращает выполнение цикла и выходит из него.'
+      },
+      {
+        question: 'Какое значение вернёт выражение: 10 // 3?',
+        options: ['3.33', '3', '4', '1'],
+        correctAnswer: 1,
+        explanation: '// — это целочисленное деление. 10 // 3 = 3 (без остатка).'
+      },
+      {
+        question: 'Как получить длину списка в Python?',
+        options: ['list.length()', 'len(list)', 'list.size()', 'count(list)'],
+        correctAnswer: 1,
+        explanation: 'Функция len() возвращает количество элементов в списке.'
+      },
+      {
+        question: 'Что такое None в Python?',
+        options: [
+          'Число ноль',
+          'Пустая строка',
+          'Специальное значение "ничего"',
+          'Ошибка'
+        ],
+        correctAnswer: 2,
+        explanation: 'None — это специальный объект, обозначающий отсутствие значения.'
+      }
+    ])
+  );
+  
+  // Add some user activity for the student
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  dbWrapper!.prepare(
+    'INSERT OR REPLACE INTO user_activity (user_id, activity_date, hours_spent, lessons_completed) VALUES (?, ?, ?, ?)'
+  ).run(studentId, today, 1.5, 2);
+  
+  dbWrapper!.prepare(
+    'INSERT OR REPLACE INTO user_activity (user_id, activity_date, hours_spent, lessons_completed) VALUES (?, ?, ?, ?)'
+  ).run(studentId, yesterday, 2.0, 3);
+  
+  console.log('✅ Demo data seeded successfully!');
+  console.log('   📧 Teacher: admin@teacher / admin@teacher');
+  console.log('   📧 Student: admin@student / admin@student');
 }
 
 export function getDb(): any {
