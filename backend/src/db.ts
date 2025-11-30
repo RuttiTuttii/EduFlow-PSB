@@ -590,21 +590,19 @@ minimum, maximum = min_max([1, 5, 3, 9, 2])
     {
       title: 'Тест: Переменные и типы данных',
       description: 'Проверьте свои знания о переменных и типах данных в Python. Тест включает 5 вопросов.',
-      due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      max_score: 100
+      due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     },
     {
       title: 'Практика: Условные операторы',
       description: 'Напишите программу для определения високосного года. Год високосный, если делится на 4, но не на 100, или делится на 400.',
-      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      max_score: 100
+      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     }
   ];
   
   for (const assignment of assignments) {
     dbWrapper!.prepare(
-      'INSERT INTO assignments (course_id, title, description, due_date, max_score) VALUES (?, ?, ?, ?, ?)'
-    ).run(courseId, assignment.title, assignment.description, assignment.due_date, assignment.max_score);
+      'INSERT INTO assignments (course_id, title, description, due_date) VALUES (?, ?, ?, ?)'
+    ).run(courseId, assignment.title, assignment.description, assignment.due_date);
   }
   
   // Create exam
